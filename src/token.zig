@@ -8,7 +8,11 @@ pub const Token = struct {
     const Self = @This();
 
     pub fn format(self: *const Self, writer: *Io.Writer) !void {
-        try writer.print("{s:>16}; \"{s}\"", .{ @tagName(self.kind), self.lexeme });
+        if (self.kind == .Whitespace) {
+            try writer.print("{s:>16}; {any}", .{ @tagName(self.kind), self.lexeme });
+        } else {
+            try writer.print("{s:>16}; \"{s}\"", .{ @tagName(self.kind), self.lexeme });
+        }
     }
 
     pub const Kind = enum {
