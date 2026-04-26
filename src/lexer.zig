@@ -18,6 +18,7 @@ pub const Lexer = struct {
             .source = source,
             .lexeme_start = 0,
             .lexeme_end = 0,
+            .line_number = 0,
         };
     }
 };
