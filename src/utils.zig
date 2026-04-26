@@ -23,10 +23,10 @@ fn run(io: Io, source_code: []const u8) !void {
     var lexer = Lexer.init(source_code);
 
     log.debug("printing all tokens in Lexer", .{});
-    while (lexer.next()) |f| {
-        log.debug("{any}", .{f});
+    while (true) {
         const token = lexer.next() catch |lexical_error| {
             log.debug("lexical error: {any}", .{lexical_error});
+            continue;
         } orelse {
             log.debug("lexer is out of tokens", .{});
             break;
