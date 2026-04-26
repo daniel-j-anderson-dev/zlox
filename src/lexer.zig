@@ -42,12 +42,20 @@ pub const Lexer = struct {
                 '+' => .Plus,
                 ';' => .Semicolon,
                 '*' => .Asterisk,
+                '!' => if (self.extendLexemeIfCurrentByte(is('='))) .BangEqual else .Bang,
+                '=' => if (self.extendLexemeIfCurrentByte(is('='))) .EqualEqual else .Equal,
+                '<' => if (self.extendLexemeIfCurrentByte(is('='))) .LessEqual else .Less,
+                '>' => if (self.extendLexemeIfCurrentByte(is('='))) .GreaterEqual else .Greater,
                 else => a: {
                     break :a .Unrecognized;
                 },
             },
             .lexeme = self.lexeme(),
         };
+    }
+
+    fn sourceBytesAvailable(self: *const Self) bool {
+        return self.lexeme_end >= self.source.len;
     }
 
     fn outOfSourceBytes(self: *const Self) bool {
@@ -69,4 +77,33 @@ pub const Lexer = struct {
     fn extendLexeme(self: *Self) void {
         self.lexeme_end +|= 1;
     }
+
+    fn extendLexemeIfCurrentByte(self: *Self, predicate: fn (u8) bool) bool {
+        if (self.sourceBytesAvailable() and predicate(self.currentByte())) {
+            self.extendLexeme();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    fn extendLexemeWhileCurrentByte(self: *Self, predicate: fn (u8) bool) void {
+        while (self.extendLexemeIfCurrentByte(predicate)) {}
+    }
 };
+
+fn is(a: u8) fn (u8) bool {
+    return struct {
+        pub fn f(b: u8) bool {
+            return a == b;
+        }
+    };
+}
+
+fn not(predicate: fn (u8) bool) fn (u8) bool {
+    return struct {
+        pub fn f(a: u8) bool {
+            return !predicate(a);
+        }
+    };
+}
