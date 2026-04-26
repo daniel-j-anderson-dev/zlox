@@ -15,7 +15,10 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const command_line_arguments = try init.minimal.args.toSlice(arena);
 
-    log.debug("{d} command line argument{s}", .{ command_line_arguments.len, if (command_line_arguments.len == 0) "" else "s" });
+    log.debug(
+        "{d} command line argument{s}",
+        .{ command_line_arguments.len, if (command_line_arguments.len == 0) "" else "s" },
+    );
     for (command_line_arguments) |argument| {
         log.debug("\"{s}\"", .{argument});
     }
