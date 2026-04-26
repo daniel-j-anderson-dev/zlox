@@ -26,14 +26,12 @@ pub fn runFile(io: Io, allocator: Allocator, path: [:0]const u8) !void {
 
 pub fn runPrompt(io: Io) !void {
     // initialize stdout writer
-    log.debug("Initializing stdout with a buffer size of {d}", .{buffer_size});
     const stdout_file = File.stdout();
     var stdout_buffer: [buffer_size]u8 = undefined;
     var stdout_writer = stdout_file.writer(io, &stdout_buffer);
     var stdout = &stdout_writer.interface;
 
     // initialize stdin reader
-    log.debug("Initializing stdin with a buffer size of {d}", .{buffer_size});
     const stdin_file = File.stdin();
     var stdin_buffer: [buffer_size]u8 = undefined;
     var stdin_reader = stdin_file.reader(io, &stdin_buffer);
