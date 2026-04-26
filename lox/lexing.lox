@@ -1,0 +1,60 @@
+// Single-character tokens.
+(
+)
+{
+}
+,
+.
+-
++
+;
+/
+*
+
+// One or two character tokens.
+! 
+!=
+= 
+==
+> 
+>=
+< 
+<=
+
+// Literals.
+ident
+ident_
+_ident
+ident_ident
+ident2
+"hello there!"
+"
+    multiline
+    
+    string!
+"
+0.
+.0
+0.0
+
+// Keywords
+and
+class
+else
+false
+fun
+for
+if
+nil
+or
+print
+return
+super
+this
+true
+var
+while
+
+// Other
+ |  |
+ 
