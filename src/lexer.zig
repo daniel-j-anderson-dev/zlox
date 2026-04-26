@@ -43,12 +43,12 @@ pub const Lexer = struct {
                 '+' => .Plus,
                 ';' => .Semicolon,
                 '*' => .Asterisk,
-                '!' => if (self.extendLexemeIfCurrentByte(is('='))) .BangEqual else .Bang,
-                '=' => if (self.extendLexemeIfCurrentByte(is('='))) .EqualEqual else .Equal,
-                '<' => if (self.extendLexemeIfCurrentByte(is('='))) .LessEqual else .Less,
-                '>' => if (self.extendLexemeIfCurrentByte(is('='))) .GreaterEqual else .Greater,
-                '/' => if (self.extendLexemeIfCurrentByte(is('/'))) a: {
-                    self.extendLexemeWhileCurrentByte(not(is('\n')));
+                '!' => if (self.extendLexemeIfCurrentByte(equalTo('='))) .BangEqual else .Bang,
+                '=' => if (self.extendLexemeIfCurrentByte(equalTo('='))) .EqualEqual else .Equal,
+                '<' => if (self.extendLexemeIfCurrentByte(equalTo('='))) .LessEqual else .Less,
+                '>' => if (self.extendLexemeIfCurrentByte(equalTo('='))) .GreaterEqual else .Greater,
+                '/' => if (self.extendLexemeIfCurrentByte(equalTo('/'))) a: {
+                    self.extendLexemeWhileCurrentByte(not(equalTo('\n')));
                     break :a .Comment;
                 } else .Slash,
                 '\n' => a: {
@@ -56,7 +56,7 @@ pub const Lexer = struct {
                     break :a .Whitespace;
                 },
                 ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff => a: {
-                    self.extendLexemeWhileCurrentByte(isOneOf(non_new_line_whitespace));
+                    self.extendLexemeWhileCurrentByte(memberOf(non_new_line_whitespace));
                     break :a .Whitespace;
                 },
                 '"' => a: {
@@ -71,7 +71,7 @@ pub const Lexer = struct {
                     if (self.extendedLexemeToKeyword()) |keyword_kind| {
                         break :a keyword_kind;
                     }
-                    self.extendLexemeWhileCurrentByte(Or(ascii.isAlphanumeric, is('_')));
+                    self.extendLexemeWhileCurrentByte(isEither(ascii.isAlphanumeric, equalTo('_')));
                     break :a .Identifier;
                 },
                 else => a: {
@@ -124,8 +124,8 @@ pub const Lexer = struct {
     }
 
     fn extendLexemeToStringLiteral(self: *Self) !void {
-        self.extendLexemeWhileCurrentByte(not(is('"')));
-        const is_closing_quote_present = self.extendLexemeIfCurrentByte(is('"'));
+        self.extendLexemeWhileCurrentByte(not(equalTo('"')));
+        const is_closing_quote_present = self.extendLexemeIfCurrentByte(equalTo('"'));
 
         if (!is_closing_quote_present)
             return error.UnterminatedStringLiteral;
@@ -136,7 +136,7 @@ pub const Lexer = struct {
 
     fn extendLexemeToNumberLiteral(self: *Self) void {
         self.extendLexemeWhileCurrentByte(ascii.isDigit);
-        if (self.extendLexemeIfCurrentByte(is('.'))) {
+        if (self.extendLexemeIfCurrentByte(equalTo('.'))) {
             self.extendLexemeWhileCurrentByte(ascii.isDigit);
         }
     }
@@ -151,7 +151,7 @@ pub const Lexer = struct {
     }
 };
 
-fn is(a: u8) fn (u8) bool {
+fn equalTo(a: u8) fn (u8) bool {
     return struct {
         pub fn f(b: u8) bool {
             return a == b;
@@ -167,7 +167,7 @@ fn not(predicate: fn (u8) bool) fn (u8) bool {
     }.f;
 }
 
-fn Or(predicate_a: fn (u8) bool, predicate_b: fn (u8) bool) fn (u8) bool {
+fn isEither(predicate_a: fn (u8) bool, predicate_b: fn (u8) bool) fn (u8) bool {
     return struct {
         pub fn f(a: u8) bool {
             return predicate_a(a) or predicate_b(a);
@@ -175,7 +175,7 @@ fn Or(predicate_a: fn (u8) bool, predicate_b: fn (u8) bool) fn (u8) bool {
     }.f;
 }
 
-fn isOneOf(haystack: []const u8) fn (u8) bool {
+fn memberOf(haystack: []const u8) fn (u8) bool {
     return struct {
         pub fn f(needle: u8) bool {
             return std.mem.findScalar(u8, haystack, needle) != null;
@@ -184,3 +184,4 @@ fn isOneOf(haystack: []const u8) fn (u8) bool {
 }
 
 const non_new_line_whitespace: *const [5]u8 = &.{ ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff };
+const recognized = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz<>./-=!(){}*;\"";
