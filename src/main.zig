@@ -15,12 +15,14 @@ pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const command_line_arguments = try init.minimal.args.toSlice(arena);
 
+    const input_output = init.io;
+
     const general_purpose_allocator = init.gpa;
 
     switch (command_line_arguments.len) {
         0, 1 => {
             log.info("Starting lox REPL", .{});
-            try zlox.runPrompt(init.io);
+            try zlox.runPrompt(input_output);
         },
         2 => {
             if (equalIgnoreAsciiCase(command_line_arguments[1], "usage")) {
@@ -31,7 +33,7 @@ pub fn main(init: std.process.Init) !void {
             const source_file_path = command_line_arguments[1];
             log.info("Running file: {s}", .{source_file_path});
             try zlox.runFile(
-                init.io,
+                input_output,
                 general_purpose_allocator,
                 command_line_arguments[1],
             );
