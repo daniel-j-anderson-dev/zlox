@@ -13,13 +13,13 @@ const buffer_size = 1024;
 
 fn run(io: Io, source_code: []const u8) !void {
     // initialize stdout writer
-    log.debug("Initializing stdout", .{});
+    log.debug("initializing stdout", .{});
     const stdout_file = File.stdout();
     var stdout_buffer: [buffer_size]u8 = undefined;
     var stdout_writer = stdout_file.writer(io, &stdout_buffer);
     var stdout = &stdout_writer.interface;
 
-    log.debug("initialize Lexer", .{});
+    log.debug("initializing Lexer", .{});
     var lexer = Lexer.init(source_code);
 
     log.debug("printing all tokens in Lexer", .{});
@@ -31,7 +31,7 @@ fn run(io: Io, source_code: []const u8) !void {
             log.debug("lexer is out of tokens", .{});
             break;
         };
-        try stdout.print("{f}", .{token});
+        try stdout.print("{f}\n", .{token});
         try stdout.flush();
     }
 }
