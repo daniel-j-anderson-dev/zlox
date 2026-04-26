@@ -56,7 +56,7 @@ pub const Lexer = struct {
                     break :a .Whitespace;
                 },
                 ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff => a: {
-                    self.extendLexemeWhileCurrentByte(memberOf(non_new_line_whitespace));
+                    self.extendLexemeWhileCurrentByte(elementOf(non_new_line_whitespace));
                     break :a .Whitespace;
                 },
                 '"' => a: {
@@ -75,7 +75,7 @@ pub const Lexer = struct {
                     break :a .Identifier;
                 },
                 else => a: {
-                    self.extendLexemeWhileCurrentByte(not(memberOf(recognized)));
+                    self.extendLexemeWhileCurrentByte(not(elementOf(recognized)));
                     break :a .Unrecognized;
                 },
             },
@@ -176,7 +176,7 @@ fn isEither(predicate_a: fn (u8) bool, predicate_b: fn (u8) bool) fn (u8) bool {
     }.f;
 }
 
-fn memberOf(haystack: []const u8) fn (u8) bool {
+fn elementOf(haystack: []const u8) fn (u8) bool {
     return struct {
         pub fn f(needle: u8) bool {
             return std.mem.findScalar(u8, haystack, needle) != null;
