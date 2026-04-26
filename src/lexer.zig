@@ -46,6 +46,10 @@ pub const Lexer = struct {
                 '=' => if (self.extendLexemeIfCurrentByte(is('='))) .EqualEqual else .Equal,
                 '<' => if (self.extendLexemeIfCurrentByte(is('='))) .LessEqual else .Less,
                 '>' => if (self.extendLexemeIfCurrentByte(is('='))) .GreaterEqual else .Greater,
+                '/' => if (self.extendLexemeIfCurrentByte(is('/'))) a: {
+                    self.extendLexemeWhileCurrentByte(not(is('\n')));
+                    break :a .Comment;
+                } else .Slash,
                 else => a: {
                     break :a .Unrecognized;
                 },
