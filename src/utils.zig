@@ -12,31 +12,59 @@ const Lexer = zlox.Lexer;
 const buffer_size = 1024;
 
 fn run(io: Io, source_code: []const u8) !void {
-    const lexer = Lexer.init(source_code);
-    _ = lexer;
-    _ = io;
-    //TODO
+    // initialize stdout writer
+    log.debug("Initializing stdout", .{});
+    const stdout_file = File.stdout();
+    var stdout_buffer: [buffer_size]u8 = undefined;
+    var stdout_writer = stdout_file.writer(io, &stdout_buffer);
+    var stdout = &stdout_writer.interface;
+
+    log.debug("initialize Lexer", .{});
+    var lexer = Lexer.init(source_code);
+
+    log.debug("printing all tokens in Lexer", .{});
+    while (lexer.next()) |f| {
+        log.debug("{any}", .{f});
+        const token = lexer.next() catch |lexical_error| {
+            log.debug("lexical error: {any}", .{lexical_error});
+        } orelse {
+            log.debug("lexer is out of tokens", .{});
+            break;
+        };
+        try stdout.print("{f}", .{token});
+        try stdout.flush();
+    }
 }
 
 pub fn runFile(io: Io, allocator: Allocator, path: [:0]const u8) !void {
-    const file_contents = try Dir.cwd().readFileAlloc(io, path, allocator, .unlimited);
+    log.debug("Reading contents of {s}", .{path});
+    const file_contents = try Dir.cwd().readFileAlloc(
+        io,
+        path,
+        allocator,
+        .unlimited,
+    );
     defer allocator.free(file_contents);
+    log.info("Running file contents", .{});
     try run(io, file_contents);
 }
 
 pub fn runPrompt(io: Io) !void {
     // initialize stdout writer
+    log.debug("Initializing stdout", .{});
     const stdout_file = File.stdout();
     var stdout_buffer: [buffer_size]u8 = undefined;
     var stdout_writer = stdout_file.writer(io, &stdout_buffer);
     var stdout = &stdout_writer.interface;
 
     // initialize stdin reader
+    log.debug("lexer is out of tokens", .{});
     const stdin_file = File.stdin();
     var stdin_buffer: [buffer_size]u8 = undefined;
     var stdin_reader = stdin_file.reader(io, &stdin_buffer);
     var stdin = &stdin_reader.interface;
 
+    log.info("staring REPL", .{});
     while (true) {
         try stdout.print("> ", .{});
         try stdout.flush();
