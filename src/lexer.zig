@@ -1,7 +1,4 @@
 const std = @import("std");
-const Io = std.Io;
-const Allocator = std.mem.Allocator;
-const log = std.log;
 const ascii = std.ascii;
 
 const zlox = @import("root.zig");
