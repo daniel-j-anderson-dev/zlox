@@ -35,7 +35,7 @@ pub fn main(init: std.process.Init) !void {
             try zlox.runFile(
                 input_output,
                 general_purpose_allocator,
-                command_line_arguments[1],
+                source_file_path,
             );
         },
         else => {
