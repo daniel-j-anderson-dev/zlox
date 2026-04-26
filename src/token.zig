@@ -61,11 +61,10 @@ pub const Token = struct {
         True,
         Var,
         While,
-
         // Other
         Whitespace,
         Comment,
-        Eof,
+        EndOfFile,
         Unrecognized,
 
         pub const Keyword = struct {
