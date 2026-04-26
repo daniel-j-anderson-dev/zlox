@@ -3,6 +3,7 @@ const Io = std.Io;
 const File = std.Io.File;
 const Dir = std.Io.Dir;
 const Allocator = std.mem.Allocator;
+const ascii = std.ascii;
 
 const zlox = @import("root.zig");
 const Lexer = zlox.Lexer;
@@ -39,8 +40,8 @@ pub fn runPrompt(io: *Io) !void {
         try stdout.print("> ", .{});
         try stdout.flush();
 
-        const line = try stdin.takeDelimiter('\n') orelse break;
-
+        const raw_line = try stdin.takeDelimiter('\n') orelse break;
+        const line = std.mem.trim(u8, raw_line, &ascii.whitespace);
         if (line.len == 0) continue;
 
         try run(io, line);
