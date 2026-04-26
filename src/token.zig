@@ -1,10 +1,15 @@
 const std = @import("std");
+const Io = std.Io;
 
 pub const Token = struct {
     kind: Kind,
     lexeme: []const u8,
 
     const Self = @This();
+
+    pub fn format(self: *const Self, writer: Io.Writer) !void {
+        writer.print("{any:>16}; \"{s}\"", .{ self.kind, self.lexeme });
+    }
 
     pub const Kind = enum {
         // Single-character tokens.
