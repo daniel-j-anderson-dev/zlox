@@ -71,7 +71,7 @@ pub const Lexer = struct {
                     if (self.extendedLexemeToKeyword()) |keyword_kind| {
                         break :a keyword_kind;
                     }
-                    self.extendLexemeWhileCurrentByte(ascii.isAlphanumeric);
+                    self.extendLexemeWhileCurrentByte(Or(ascii.isAlphanumeric, is('_')));
                     break :a .Identifier;
                 },
                 else => a: {
@@ -163,6 +163,14 @@ fn not(predicate: fn (u8) bool) fn (u8) bool {
     return struct {
         pub fn f(a: u8) bool {
             return !predicate(a);
+        }
+    }.f;
+}
+
+fn Or(predicate_a: fn (u8) bool, predicate_b: fn (u8) bool) fn (u8) bool {
+    return struct {
+        pub fn f(a: u8) bool {
+            return predicate_a(a) or predicate_b(a);
         }
     }.f;
 }
