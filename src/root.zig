@@ -9,6 +9,8 @@ pub const run = utils.run;
 pub const readFileBytes = utils.readFileBytes;
 pub const runFile = utils.runFile;
 pub const runPrompt = utils.runPrompt;
+pub const equalIgnoreAsciiCase = utils.equalIgnoreAsciiCase;
+
 
 pub const lexer = @import("lexer.zig");
 pub const Lexer = lexer.Lexer;
