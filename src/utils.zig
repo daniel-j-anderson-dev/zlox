@@ -31,6 +31,7 @@ fn run(io: Io, source_code: []const u8) !void {
             log.debug("lexer is out of tokens", .{});
             break;
         };
+        log.debug("line number: {d}", .{lexer.line_number});
         try stdout.print("{f}\n", .{token});
         try stdout.flush();
     }
