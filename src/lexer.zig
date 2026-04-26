@@ -75,6 +75,7 @@ pub const Lexer = struct {
                     break :a .Identifier;
                 },
                 else => a: {
+                    self.extendLexemeWhileCurrentByte(not(memberOf(recognized)));
                     break :a .Unrecognized;
                 },
             },
