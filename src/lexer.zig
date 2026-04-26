@@ -13,7 +13,7 @@ pub const Lexer = struct {
 
     const Self = @This();
 
-    pub fn new(source: []const u8) Self {
+    pub fn init(source: []const u8) Self {
         return .{
             .source = source,
             .lexeme_start = 0,
