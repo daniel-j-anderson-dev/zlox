@@ -2,6 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 const Allocator = std.mem.Allocator;
 const log = std.log;
+const ascii = std.ascii;
 
 const zlox = @import("root.zig");
 const Token = zlox.Token;
@@ -50,6 +51,14 @@ pub const Lexer = struct {
                     self.extendLexemeWhileCurrentByte(not(is('\n')));
                     break :a .Comment;
                 } else .Slash,
+                '\n' => a: {
+                    self.nextLine();
+                    break :a .Whitespace;
+                },
+                ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff => a: {
+                    self.extendLexemeWhileCurrentByte(isOneOf(non_new_line_whitespace));
+                    break :a .Whitespace;
+                },
                 else => a: {
                     break :a .Unrecognized;
                 },
@@ -82,6 +91,10 @@ pub const Lexer = struct {
         self.lexeme_end +|= 1;
     }
 
+    fn nextLine(self: *Self) void {
+        self.line_number +|= 1;
+    }
+
     fn extendLexemeIfCurrentByte(self: *Self, predicate: fn (u8) bool) bool {
         if (self.sourceBytesAvailable() and predicate(self.currentByte())) {
             self.extendLexeme();
@@ -111,3 +124,13 @@ fn not(predicate: fn (u8) bool) fn (u8) bool {
         }
     };
 }
+
+fn isOneOf(haystack: []const u8) fn (u8) bool {
+    return struct {
+        pub fn f(needle: u8) bool {
+            return std.mem.findScalar(u8, haystack, needle) != null;
+        }
+    };
+}
+
+const non_new_line_whitespace: []u8 = &.{ ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff };
