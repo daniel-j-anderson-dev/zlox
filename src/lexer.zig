@@ -185,4 +185,4 @@ fn memberOf(haystack: []const u8) fn (u8) bool {
 }
 
 const non_new_line_whitespace: *const [5]u8 = &.{ ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff };
-const recognized = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz<>./-=!(){}*;\"";
+const recognized = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz<>./-=!(){}*;\"" ++ non_new_line_whitespace;
