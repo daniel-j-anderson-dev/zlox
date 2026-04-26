@@ -25,15 +25,15 @@ pub const Lexer = struct {
 
     pub fn next(self: *Self) !?Token {
         if (self.outOfSourceBytes()) {
-            return if (self.end_of_file_emitted)
-                null
-            else a: {
+            if (self.end_of_file_emitted) {
+                return null;
+            } else {
                 self.end_of_file_emitted = true;
-                break :a .{
+                return .{
                     .kind = .EndOfFile,
                     .lexeme = "",
                 };
-            };
+            }
         }
 
         self.startNewLexeme();
