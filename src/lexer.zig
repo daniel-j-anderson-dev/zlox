@@ -60,8 +60,12 @@ pub const Lexer = struct {
                     break :a .Whitespace;
                 },
                 '"' => a: {
-                   try self.extendLexemeToStringLiteral();
+                    try self.extendLexemeToStringLiteral();
                     break :a .String;
+                },
+                '0'...'9' => a: {
+                    self.extendLexemeToNumberLiteral();
+                    break :a .Number;
                 },
                 else => a: {
                     break :a .Unrecognized;
@@ -121,6 +125,13 @@ pub const Lexer = struct {
 
         const new_line_count = std.mem.count(u8, self.lexeme(), "\n");
         self.line_number +|= new_line_count;
+    }
+
+    fn extendLexemeToNumberLiteral(self: *Self) void {
+        self.extendLexemeWhileCurrentByte(ascii.isDigit);
+        if (self.extendLexemeIfCurrentByte(is('.'))) {
+            self.extendLexemeWhileCurrentByte(ascii.isDigit);
+        }
     }
 };
 
