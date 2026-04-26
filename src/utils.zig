@@ -44,6 +44,10 @@ pub fn runPrompt(io: Io) !void {
         const raw_line = try stdin.takeDelimiter('\n') orelse break;
         const line = std.mem.trim(u8, raw_line, &ascii.whitespace);
         if (line.len == 0) continue;
+        if (equalIgnoreAsciiCase(line, "exit")) {
+            log.info("Exiting REPL", .{});
+            break;
+        }
 
         try run(io, line);
     }
