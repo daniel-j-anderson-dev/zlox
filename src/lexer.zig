@@ -59,6 +59,15 @@ pub const Lexer = struct {
                     self.extendLexemeWhileCurrentByte(isOneOf(non_new_line_whitespace));
                     break :a .Whitespace;
                 },
+                '"' => a: {
+                    self.extendLexemeWhileCurrentByte(not(is('"')));
+                    const is_closing_quote_present = self.extendLexemeIfCurrentByte(is('"'));
+                    const new_line_count = std.mem.count(u8, self.lexeme(), "\n");
+                    self.line_number +|= new_line_count;
+                    if (!is_closing_quote_present)
+                        return error.UnterminatedStringLiteral;
+                    break :a .String;
+                },
                 else => a: {
                     break :a .Unrecognized;
                 },
@@ -68,7 +77,7 @@ pub const Lexer = struct {
     }
 
     fn sourceBytesAvailable(self: *const Self) bool {
-        return self.lexeme_end >= self.source.len;
+        return self.lexeme_end < self.source.len;
     }
 
     fn outOfSourceBytes(self: *const Self) bool {
@@ -114,7 +123,7 @@ fn is(a: u8) fn (u8) bool {
         pub fn f(b: u8) bool {
             return a == b;
         }
-    };
+    }.f;
 }
 
 fn not(predicate: fn (u8) bool) fn (u8) bool {
@@ -122,7 +131,7 @@ fn not(predicate: fn (u8) bool) fn (u8) bool {
         pub fn f(a: u8) bool {
             return !predicate(a);
         }
-    };
+    }.f;
 }
 
 fn isOneOf(haystack: []const u8) fn (u8) bool {
@@ -130,7 +139,7 @@ fn isOneOf(haystack: []const u8) fn (u8) bool {
         pub fn f(needle: u8) bool {
             return std.mem.findScalar(u8, haystack, needle) != null;
         }
-    };
+    }.f;
 }
 
-const non_new_line_whitespace: []u8 = &.{ ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff };
+const non_new_line_whitespace: *const [5]u8 = &.{ ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff };
