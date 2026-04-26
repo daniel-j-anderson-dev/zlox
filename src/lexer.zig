@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const log = std.log;
 
 const zlox = @import("root.zig");
+const Token = zlox.Token;
 
 pub const Lexer = struct {
     source: []const u8,
@@ -20,5 +21,10 @@ pub const Lexer = struct {
             .lexeme_end = 0,
             .line_number = 0,
         };
+    }
+
+    pub fn next(self: *Self) !?Token {
+        _=self;
+        return error.Unimplemented;
     }
 };
