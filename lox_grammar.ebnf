@@ -8,6 +8,6 @@ grouping = "(" expression ")" ;
 unary    = unary_operator expression ;
 binary   = expression binary_operator expression ;
 
-unary_operator = "-" | "!"
+unary_operator  = "-" | "!"
 binary_operator = "==" | "!=" | "<" | "<=" | ">" | ">="
                 | "+"  | "-"  | "*" | "/" ;
