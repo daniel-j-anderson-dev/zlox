@@ -2,15 +2,16 @@ const std = @import("std");
 
 pub const Token = struct {
     kind: Kind,
+    lexeme: []const u8,
 
     const Self = @This();
 
     pub const Kind = enum {
         // Single-character tokens.
-        LeftParen,
-        RightParen,
-        LeftBrace,
-        RightBrace,
+        LeftParenthesis,
+        RightParenthesis,
+        LeftCurlyBrace,
+        RightCurlyBrace,
         Comma,
         Dot,
         Minus,
