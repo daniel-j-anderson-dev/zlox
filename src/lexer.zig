@@ -25,6 +25,6 @@ pub const Lexer = struct {
 
     pub fn next(self: *Self) !?Token {
         _ = self;
-        return error.Unimplemented;
+        return null;
     }
 };
