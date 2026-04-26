@@ -63,5 +63,32 @@ pub const Token = struct {
         Comment,
         Eof,
         Unrecognized,
+
+        pub const Keyword = struct {
+            kind: Token.Kind,
+            lexeme: []const u8,
+
+            pub fn init(kind: Token.Kind, lexeme: []const u8) @This() {
+                return .{ .kind = kind, .lexeme = lexeme };
+            }
+        };
+        pub const keywords: [16]Keyword = .{
+            .init(.And, "and"),
+            .init(.Class, "class"),
+            .init(.Else, "else"),
+            .init(.False, "false"),
+            .init(.Fun, "fun"),
+            .init(.For, "for"),
+            .init(.If, "if"),
+            .init(.Nil, "nil"),
+            .init(.Or, "or"),
+            .init(.Print, "print"),
+            .init(.Return, " return"),
+            .init(.Super, "super"),
+            .init(.This, "this"),
+            .init(.True, "true"),
+            .init(.Var, "var"),
+            .init(.While, "while"),
+        };
     };
 };

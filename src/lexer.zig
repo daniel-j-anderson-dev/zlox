@@ -67,6 +67,13 @@ pub const Lexer = struct {
                     self.extendLexemeToNumberLiteral();
                     break :a .Number;
                 },
+                'A'...'Z', 'a'...'z' => a: {
+                    if (self.extendedLexemeToKeyword()) |keyword_kind| {
+                        break :a keyword_kind;
+                    }
+                    self.extendLexemeWhileCurrentByte(ascii.isAlphanumeric);
+                    break :a .Identifier;
+                },
                 else => a: {
                     break :a .Unrecognized;
                 },
@@ -132,6 +139,15 @@ pub const Lexer = struct {
         if (self.extendLexemeIfCurrentByte(is('.'))) {
             self.extendLexemeWhileCurrentByte(ascii.isDigit);
         }
+    }
+
+    fn extendedLexemeToKeyword(self: *Self) ?Token.Kind {
+        self.extendLexemeWhileCurrentByte(ascii.isAlphabetic);
+        for (Token.Kind.keywords) |keyword| {
+            const is_lexeme_keyword = std.mem.eql(u8, keyword.lexeme, self.lexeme());
+            if (is_lexeme_keyword) return keyword.kind;
+        }
+        return null;
     }
 };
 
