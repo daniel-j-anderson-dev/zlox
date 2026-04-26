@@ -8,27 +8,19 @@ const zlox = @import("root.zig");
 const Lexer = zlox.Lexer;
 
 fn run(io: *Io, source_code: []const u8) !void {
-    // TODO: implement
+    const lexer = Lexer.new(source_code);
+    _ = lexer;
     _ = io;
-    _ = source_code;
-}
-
-/// Caller owns the returned slice; deallocate it with the same allocator passed as an argument.
-fn readFileBytes(io: *Io, allocator: Allocator, path: [:0]const u8) ![]const u8 {
-    // TODO: implement
-    _ = io;
-    _ = allocator;
-    _ = path;
+    //TODO
 }
 
 pub fn runFile(io: *Io, allocator: Allocator, path: [:0]const u8) !void {
-    // TODO: implement
-    _ = io;
-    _ = allocator;
-    _ = path;
+    const file_contents = try Dir.cwd().readFileAlloc(io, path, allocator, .unlimited);
+    defer allocator.free(file_contents);
+    try run(io, file_contents);
 }
 
 pub fn runPrompt(io: *Io) !void {
-    // TODO: implement
+    // TODO
     _ = io;
 }
