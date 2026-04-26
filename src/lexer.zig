@@ -64,7 +64,7 @@ pub const Lexer = struct {
                     self.extendLexemeToNumberLiteral();
                     break :a .Number;
                 },
-                'A'...'Z', 'a'...'z' => a: {
+                'A'...'Z', 'a'...'z', '_' => a: {
                     if (self.extendedLexemeToKeyword()) |keyword_kind| {
                         break :a keyword_kind;
                     }
