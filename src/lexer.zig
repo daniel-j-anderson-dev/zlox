@@ -60,12 +60,7 @@ pub const Lexer = struct {
                     break :a .Whitespace;
                 },
                 '"' => a: {
-                    self.extendLexemeWhileCurrentByte(not(is('"')));
-                    const is_closing_quote_present = self.extendLexemeIfCurrentByte(is('"'));
-                    const new_line_count = std.mem.count(u8, self.lexeme(), "\n");
-                    self.line_number +|= new_line_count;
-                    if (!is_closing_quote_present)
-                        return error.UnterminatedStringLiteral;
+                   try self.extendLexemeToStringLiteral();
                     break :a .String;
                 },
                 else => a: {
@@ -115,6 +110,17 @@ pub const Lexer = struct {
 
     fn extendLexemeWhileCurrentByte(self: *Self, predicate: fn (u8) bool) void {
         while (self.extendLexemeIfCurrentByte(predicate)) {}
+    }
+
+    fn extendLexemeToStringLiteral(self: *Self) !void {
+        self.extendLexemeWhileCurrentByte(not(is('"')));
+        const is_closing_quote_present = self.extendLexemeIfCurrentByte(is('"'));
+
+        if (!is_closing_quote_present)
+            return error.UnterminatedStringLiteral;
+
+        const new_line_count = std.mem.count(u8, self.lexeme(), "\n");
+        self.line_number +|= new_line_count;
     }
 };
 
