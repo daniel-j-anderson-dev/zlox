@@ -8,7 +8,7 @@ pub const Token = struct {
     const Self = @This();
 
     pub fn format(self: *const Self, writer: *Io.Writer) !void {
-        try writer.print("{any:>16}; \"{s}\"", .{ self.kind, self.lexeme });
+        try writer.print("{s:>16}; \"{s}\"", .{ @tagName(self.kind), self.lexeme });
     }
 
     pub const Kind = enum {
