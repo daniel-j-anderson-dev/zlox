@@ -12,7 +12,7 @@ const Lexer = zlox.Lexer;
 const buffer_size = 1024;
 
 fn run(io: Io, source_code: []const u8) !void {
-    const lexer = Lexer.new(source_code);
+    const lexer = Lexer.init(source_code);
     _ = lexer;
     _ = io;
     //TODO
