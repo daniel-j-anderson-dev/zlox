@@ -9,6 +9,7 @@ pub const Lexer = struct {
     lexeme_start: usize,
     lexeme_end: usize,
     line_number: usize,
+    end_of_file_emitted: bool,
 
     const Self = @This();
 
@@ -18,11 +19,22 @@ pub const Lexer = struct {
             .lexeme_start = 0,
             .lexeme_end = 0,
             .line_number = 1,
+            .end_of_file_emitted = false,
         };
     }
 
     pub fn next(self: *Self) !?Token {
-        if (self.outOfSourceBytes()) return null;
+        if (self.outOfSourceBytes()) {
+            return if (self.end_of_file_emitted)
+                null
+            else a: {
+                self.end_of_file_emitted = true;
+                break :a .{
+                    .kind = .EndOfFile,
+                    .lexeme = "",
+                };
+            };
+        }
 
         self.startNewLexeme();
         const current = self.currentByte();
