@@ -1,5 +1,6 @@
 const std = @import("std");
 const Io = std.Io;
+const EnumSet = std.EnumSet;
 
 pub const Token = struct {
     kind: Kind,
@@ -8,7 +9,7 @@ pub const Token = struct {
     const Self = @This();
 
     pub fn format(self: *const Self, writer: *Io.Writer) !void {
-        if (self.kind == .Whitespace) {
+        if (self.kind == .whitespace) {
             try writer.print("{s:>16}; {any}", .{ @tagName(self.kind), self.lexeme });
         } else {
             try writer.print("{s:>16}; \"{s}\"", .{ @tagName(self.kind), self.lexeme });
@@ -17,81 +18,110 @@ pub const Token = struct {
 
     pub const Kind = enum {
         // Single-character tokens.
-        LeftParenthesis,
-        RightParenthesis,
-        LeftCurlyBrace,
-        RightCurlyBrace,
-        Comma,
-        Dot,
-        Minus,
-        Plus,
-        Semicolon,
-        Slash,
-        Asterisk,
+        left_parenthesis,
+        right_parenthesis,
+        left_curly_brace,
+        right_curly_brace,
+        comma,
+        dot,
+        minus,
+        plus,
+        semicolon,
+        slash,
+        asterisk,
 
         // One or two character tokens.
-        Bang,
-        BangEqual,
-        Equal,
-        EqualEqual,
-        Greater,
-        GreaterEqual,
-        Less,
-        LessEqual,
+        bang,
+        bang_equal,
+        equal,
+        equal_equal,
+        greater,
+        greater_equal,
+        less,
+        less_equal,
 
         // Literals.
-        Identifier,
-        String,
-        Number,
+        identifier,
+        string,
+        number,
 
         // Keywords.
-        And,
-        Class,
-        Else,
-        False,
-        Fun,
-        For,
-        If,
-        Nil,
-        Or,
-        Print,
-        Return,
-        Super,
-        This,
-        True,
-        Var,
-        While,
+        @"and",
+        class,
+        @"else",
+        false,
+        fun,
+        @"for",
+        @"if",
+        nil,
+        @"or",
+        print,
+        @"return",
+        super,
+        this,
+        true,
+        @"var",
+        @"while",
+
         // Other
-        Whitespace,
-        Comment,
-        EndOfFile,
-        Unrecognized,
+        whitespace,
+        comment,
+        end_of_file,
+        unrecognized,
 
-        pub const Keyword = struct {
-            kind: Token.Kind,
-            lexeme: []const u8,
+        pub const keywords = EnumSet(Token.Kind).initMany(&.{
+            .@"and",
+            .class,
+            .@"else",
+            .false,
+            .fun,
+            .@"for",
+            .@"if",
+            .nil,
+            .@"or",
+            .print,
+            .@"return",
+            .super,
+            .this,
+            .true,
+            .@"var",
+            .@"while",
+        });
 
-            pub fn init(kind: Token.Kind, lexeme: []const u8) @This() {
-                return .{ .kind = kind, .lexeme = lexeme };
-            }
-        };
-        pub const keywords: [16]Keyword = .{
-            .init(.And, "and"),
-            .init(.Class, "class"),
-            .init(.Else, "else"),
-            .init(.False, "false"),
-            .init(.Fun, "fun"),
-            .init(.For, "for"),
-            .init(.If, "if"),
-            .init(.Nil, "nil"),
-            .init(.Or, "or"),
-            .init(.Print, "print"),
-            .init(.Return, " return"),
-            .init(.Super, "super"),
-            .init(.This, "this"),
-            .init(.True, "true"),
-            .init(.Var, "var"),
-            .init(.While, "while"),
-        };
+        pub const equality_operators = EnumSet(Token.Kind).initMany(&.{ .bang_equal, .equal_equal });
+        pub const comparison_operators = EnumSet(Token.Kind).initMany(&.{
+            .less,
+            .less_equal,
+            .greater,
+            .greater_equal,
+        });
+        pub const term_operators = EnumSet(Token.Kind).initMany(&.{
+            .plus,
+            .minus,
+        });
+        pub const factor_operators = EnumSet(Token.Kind).initMany(&.{
+            .asterisk,
+            .slash,
+        });
+        pub const unary_operators = EnumSet(Token.Kind).initMany(&.{
+            .bang,
+            .minus,
+        });
+        pub const literal_values = EnumSet(Token.Kind).initMany(&.{
+            .false,
+            .true,
+            .nil,
+            .number,
+            .string,
+        });
     };
 };
+
+test "F" {
+    std.debug.print("\n", .{});
+    var iter = Token.Kind.keywords.iterator();
+    while (iter.next()) |tk| {
+        const s = @tagName(tk);
+        std.debug.print("{s}\n", .{s});
+    }
+}
