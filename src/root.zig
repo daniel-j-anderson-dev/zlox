@@ -4,7 +4,7 @@ const File = std.Io.File;
 const Dir = std.Io.Dir;
 const Allocator = std.mem.Allocator;
 
-const utils = @import("utils.zig");
+pub const utils = @import("utils.zig");
 pub const run = utils.run;
 pub const readFileBytes = utils.readFileBytes;
 pub const runFile = utils.runFile;
