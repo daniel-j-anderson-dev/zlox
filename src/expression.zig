@@ -24,13 +24,6 @@ pub const Expression = union(enum) {
         pub const Operator = enum {
             minus,
             bang,
-
-            pub fn name(self: @This()) []const u8 {
-                return switch (self) {
-                    .minus => "-",
-                    .bang => "!",
-                };
-            }
         };
     };
 
@@ -50,105 +43,114 @@ pub const Expression = union(enum) {
             subtract,
             multiply,
             divide,
-
-            pub fn name(self: @This()) []const u8 {
-                return switch (self) {
-                    .equal => "==",
-                    .not_equal => "!=",
-                    .less_than => "<",
-                    .less_than_or_equal => "<=",
-                    .greater_than => ">=",
-                    .greater_than_or_equal => ">",
-                    .add => "+",
-                    .subtract => "-",
-                    .multiply => "*",
-                    .divide => "/",
-                };
-            }
         };
     };
 
     pub const Grouping = *Self;
 
-    pub fn toString(
+    /// Caller owns the returned slice; it must be freed with the same allocator.
+    pub fn toStringAlloc(
         self: *const Self,
         allocator: Allocator,
     ) Allocator.Error![]u8 {
-        var output = ArrayList(u8).empty;
-        defer output.deinit(allocator);
-
-        switch (self.*) {
-            .literal => |token| {
-                try output.appendSlice(allocator, token.lexeme);
-            },
-            .unary => |unary| {
-                const s = try parenthesize(
-                    allocator,
-                    unary.operator.name(),
-                    &.{unary.right_operator},
-                );
-                defer allocator.free(s);
-                try output.appendSlice(allocator, s);
-            },
-            .binary => |binary| {
-                const s = try parenthesize(
-                    allocator,
-                    binary.operator.name(),
-                    &.{ binary.left_operand, binary.right_operator },
-                );
-                defer allocator.free(s);
-                try output.appendSlice(allocator, s);
-            },
-            .grouping => |inner| {
-                const s = try inner.toString(allocator);
-                defer allocator.free(s);
-                try output.appendSlice(allocator, "(group ");
-                try output.appendSlice(allocator, s);
-                try output.append(allocator, ')');
-            },
-        }
-
-        return output.toOwnedSlice(allocator);
-    }
-
-    fn parenthesize(
-        allocator: Allocator,
-        name: []const u8,
-        expressions: []const *const Expression,
-    ) Allocator.Error![]u8 {
-        var output = ArrayList(u8).empty;
-        defer output.deinit(allocator);
-
-        try output.append(allocator, '(');
-        try output.appendSlice(allocator, name);
-        for (expressions) |expression| {
-            try output.append(allocator, ' ');
-            const s = try expression.toString(allocator);
-            defer allocator.free(s);
-            try output.appendSlice(allocator, s);
-        }
-        try output.append(allocator, ')');
-        return output.toOwnedSlice(allocator);
+        return expressionToPolishNotationAlloc(allocator, self);
     }
 };
 
-test "Expression.toString" {
+fn operatorName(operator: anytype) []const u8 {
+    const Operator = @TypeOf(operator);
+    return if (Operator == Expression.Unary.Operator)
+        switch (operator) {
+            .minus => "-",
+            .bang => "!",
+        }
+    else if (Operator == Expression.Binary.Operator)
+        switch (operator) {
+            .equal => "==",
+            .not_equal => "!=",
+            .less_than => "<",
+            .less_than_or_equal => "<=",
+            .greater_than => ">=",
+            .greater_than_or_equal => ">",
+            .add => "+",
+            .subtract => "-",
+            .multiply => "*",
+            .divide => "/",
+        }
+    else
+        @compileError("expression.operatorName only supports Expression.Unary.Operator, Expression.Binary.Operator");
+}
+
+/// Caller owns the returned slice; it must be freed with the same allocator.
+fn parenthesize(
+    allocator: Allocator,
+    name: []const u8,
+    expressions: []const *const Expression,
+) Allocator.Error![]u8 {
+    var output = ArrayList(u8).empty;
+    defer output.deinit(allocator);
+
+    try output.append(allocator, '(');
+    try output.appendSlice(allocator, name);
+    for (expressions) |expression| {
+        try output.append(allocator, ' ');
+        const s = try expressionToPolishNotationAlloc(allocator, expression);
+        defer allocator.free(s);
+        try output.appendSlice(allocator, s);
+    }
+    try output.append(allocator, ')');
+    return output.toOwnedSlice(allocator);
+}
+
+/// Caller owns the returned slice; it must be freed with the same allocator.
+pub fn expressionToPolishNotationAlloc(
+    allocator: Allocator,
+    expression: *const Expression,
+) Allocator.Error![]u8 {
+    var output = ArrayList(u8).empty;
+    defer output.deinit(allocator);
+
+    const s = switch (expression.*) {
+        .literal => |token| token.lexeme,
+        .unary => |unary| try parenthesize(
+            allocator,
+            operatorName(unary.operator),
+            &.{unary.right_operator},
+        ),
+        .binary => |binary| try parenthesize(
+            allocator,
+            operatorName(binary.operator),
+            &.{ binary.left_operand, binary.right_operator },
+        ),
+        .grouping => |inner| try parenthesize(
+            allocator,
+            "group",
+            &.{inner},
+        ),
+    };
+    defer if (expression.* != .literal) allocator.free(s);
+    try output.appendSlice(allocator, s);
+
+    return output.toOwnedSlice(allocator);
+}
+
+test "Expression.toStringAlloc" {
     _ = Expression;
-    _ = Expression.toString;
-    const e = Expression{
+    _ = Expression.toStringAlloc;
+    const expr = Expression{
         .binary = .{
             .left_operand = a0: {
                 var expr = Expression{
                     .unary = .{
                         .operator = .minus,
                         .right_operator = a1: {
-                            var e = Expression{
+                            var expr_ = Expression{
                                 .literal = .{
-                                    .kind = .Number,
+                                    .kind = .number,
                                     .lexeme = "123",
                                 },
                             };
-                            break :a1 &e;
+                            break :a1 &expr_;
                         },
                     },
                 };
@@ -160,7 +162,7 @@ test "Expression.toString" {
                     .grouping = a3: {
                         var expr = Expression{
                             .literal = .{
-                                .kind = .Number,
+                                .kind = .number,
                                 .lexeme = "45.67",
                             },
                         };
@@ -172,7 +174,7 @@ test "Expression.toString" {
         },
     };
     const expected = "(* (- 123) (group 45.67))";
-    const actual = try e.toString(std.testing.allocator);
+    const actual = try expr.toStringAlloc(std.testing.allocator);
     defer std.testing.allocator.free(actual);
     std.debug.print("\n\n", .{});
     std.debug.print("expected = {s}\n", .{expected});
