@@ -1,0 +1,32 @@
+// Precedence increases top to bottom (top = lowest precedence, bottom = highest)
+
+expression = { equality }
+
+equality   = { comparison ~ ( ( "!=" | "==" ) ~ comparison )* }
+
+comparison = { term ~ ( ( ">=" | "<=" | ">" | "<" ) ~ term )* }
+
+term       = { factor ~ ( ( "+" | "-" ) ~ factor )* }
+
+factor     = { unary ~ ( ( "*" | "/" ) ~ unary )* }
+
+unary      = { ("!" | "-" ) ~ unary | primary }
+
+grouping   = { "(" ~ expression ~ ")" }
+
+primary    = {
+    "true"
+  | "false"
+  | "nil"
+  | NUMBER
+  | STRING
+  | grouping
+  | IDENTIFIER
+}
+
+// Terminals
+NUMBER     = @{ ASCII_DIGIT+ ~ ("." ~ ASCII_DIGIT*)? }
+STRING     = @{ "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+IDENTIFIER = @{ ASCII_ALPHA ~ (ASCII_ALPHANUMERIC | "_")* }
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
