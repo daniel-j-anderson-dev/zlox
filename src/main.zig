@@ -8,8 +8,8 @@ const equalIgnoreAsciiCase = zlox.equalIgnoreAsciiCase;
 
 const usage_message =
     "Usage:\n" ++
-    "Run REPL: zlox\n" ++
-    "Run a lox source file: zlox path/to/lox/source.lox";
+    "Run REPL: `> zlox`\n" ++
+    "Run a lox source file: `> zlox path/to/lox/source.lox`";
 
 pub fn main(init: std.process.Init) !void {
     const arena = init.arena.allocator();
@@ -30,7 +30,10 @@ pub fn main(init: std.process.Init) !void {
     switch (command_line_arguments.len) {
         0, 1 => {
             log.info("Starting lox REPL", .{});
-            try zlox.runPrompt(input_output);
+            try zlox.runPrompt(
+                input_output,
+                general_purpose_allocator,
+            );
         },
         2 => {
             if (equalIgnoreAsciiCase(command_line_arguments[1], "usage")) {
@@ -45,6 +48,7 @@ pub fn main(init: std.process.Init) !void {
                 general_purpose_allocator,
                 source_file_path,
             );
+            log.info("Exiting REPL", .{});
         },
         else => {
             log.err("{s}", .{usage_message});
