@@ -70,7 +70,7 @@ pub const Parser = struct {
         return self.isCurrentOutOfBounds() or self.currentToken().kind == .end_of_file;
     }
 
-    fn tokensAvailable(self: *const Self) bool {
+    fn currentTokenAvailable(self: *const Self) bool {
         return self.isCurrentInBounds() and self.currentToken().kind != .end_of_file;
     }
 
@@ -83,15 +83,35 @@ pub const Parser = struct {
     }
 
     fn consumeCurrentToken(self: *Self) void {
-        if (self.tokensAvailable()) {
+        if (self.currentTokenAvailable()) {
             self.current +|= 1;
         }
     }
 
-    fn consumeCurrentTokenOfKind(self: *Self, kinds: EnumSet(Token.Kind)) bool {
-        const should_consume = self.tokensAvailable() and kinds.contains(self.currentToken().kind);
-        if (should_consume) self.consumeCurrentToken();
-        return should_consume;
+    fn consumeCurrentTokenIf(self: *Self, predicate: fn (Token) bool) bool {
+        if (self.currentTokenAvailable() and predicate(self.currentToken())) {
+            self.consumeCurrentToken();
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    fn kindIs(x: anytype) fn (Token) bool {
+        const X = @TypeOf(x);
+        switch (X) {
+            Token.Kind => return struct {
+                pub fn f(token: Token) bool {
+                    return x == token.kind;
+                }
+            }.f,
+            EnumSet(Token.Kind) => return struct {
+                pub fn f(token: Token) bool {
+                    return x.contains(token.kind);
+                }
+            }.f,
+            else => @compileError("parser.Parser.tokenKindIs is only compatible with Token.Kind and EnumSet(Token.Kind)"),
+        }
     }
 
     // +---------------+
@@ -99,57 +119,122 @@ pub const Parser = struct {
     // +---------------+
 
     fn expressionRule(self: *Self, allocator: Allocator) Error!*Expression {
-        // TODO
-        log.err("Parser.expressionRule is not implemented", .{});
-        _ = self;
-        _ = allocator;
+        return try self.equalityRule(allocator);
     }
 
     fn equalityRule(self: *Self, allocator: Allocator) Error!*Expression {
-        // TODO
-        log.err("Parser.equalityRule is not implemented", .{});
-        _ = self;
-        _ = allocator;
+        var expression = try self.comparisonRule(allocator);
+        errdefer allocator.free(expression);
+
+        while (self.consumeCurrentTokenIf(kindIs(Token.Kind.equality_operators))) {
+            const temp = try allocator.create(Expression);
+            errdefer allocator.free(temp);
+            temp.* = .{ .binary = .{
+                .left_operand = expression,
+                .operator = self.previousToken(),
+                .right_operand = try self.comparisonRule(allocator),
+            } };
+            expression = temp;
+        }
+
+        return expression;
     }
 
     fn comparisonRule(self: *Self, allocator: Allocator) Error!*Expression {
-        // TODO
-        log.err("Parser.comparisonRule is not implemented", .{});
-        _ = self;
-        _ = allocator;
+        var expression = try self.comparisonRule(allocator);
+        errdefer allocator.free(expression);
+
+        while (self.consumeCurrentTokenIf(kindIs(Token.Kind.comparison_operators))) {
+            const temp = try allocator.create(Expression);
+            errdefer allocator.free(temp);
+            temp.* = .{ .binary = .{
+                .left_operand = expression,
+                .operator = self.previousToken(),
+                .right_operand = try self.termRule(allocator),
+            } };
+            expression = temp;
+        }
+
+        return expression;
     }
 
     fn termRule(self: *Self, allocator: Allocator) Error!*Expression {
-        // TODO
-        log.err("Parser.termRule is not implemented", .{});
-        _ = self;
-        _ = allocator;
+        var expression = try self.comparisonRule(allocator);
+        errdefer allocator.free(expression);
+
+        while (self.consumeCurrentTokenIf(kindIs(Token.Kind.term_operators))) {
+            const temp = try allocator.create(Expression);
+            errdefer allocator.free(temp);
+            temp.* = .{ .binary = .{
+                .left_operand = expression,
+                .operator = self.previousToken(),
+                .right_operand = try self.factorRule(allocator),
+            } };
+            expression = temp;
+        }
+
+        return expression;
     }
 
     fn factorRule(self: *Self, allocator: Allocator) Error!*Expression {
-        // TODO
-        log.err("Parser.factorRule is not implemented", .{});
-        _ = self;
-        _ = allocator;
+        var expression = try self.comparisonRule(allocator);
+        errdefer allocator.free(expression);
+
+        while (self.consumeCurrentTokenIf(kindIs(Token.Kind.factor_operators))) {
+            const temp = try allocator.create(Expression);
+            errdefer allocator.free(temp);
+            temp.* = .{ .binary = .{
+                .left_operand = expression,
+                .operator = self.previousToken(),
+                .right_operand = try self.unaryRule(allocator),
+            } };
+            expression = temp;
+        }
+
+        return expression;
     }
 
     fn unaryRule(self: *Self, allocator: Allocator) Error!*Expression {
-        // TODO
-        log.err("Parser.unaryRule is not implemented", .{});
-        _ = self;
-        _ = allocator;
+        if (self.consumeCurrentTokenIf(kindIs(Token.Kind.unary_operators))) {
+            const temp = try allocator.create(Expression);
+            errdefer allocator.free(temp);
+            temp.* = .{
+                .unary = .{
+                    .operator = self.previousToken(),
+                    .right_operator = try self.unaryRule(allocator),
+                },
+            };
+        } else {
+            try self.primaryRule(allocator);
+        }
     }
 
     fn primaryRule(self: *Self, allocator: Allocator) Error!*Expression {
-        // TODO
-        log.err("Parser.primaryRule is not implemented", .{});
-        _ = self;
-        _ = allocator;
+        if (self.consumeCurrentTokenIf(kindIs(Token.Kind.literal_values))) {
+            const temp = try allocator.create(Expression);
+            errdefer allocator.free(temp);
+            temp.* = .{ .literal = self.previousToken() };
+            return temp;
+        }
+
+        if (self.consumeCurrentTokenIf(kindIs(.left_parenthesis))) {
+            const expression = try self.expressionRule(allocator);
+            errdefer allocator.free(expression);
+            const right_parenthesis_present = self.consumeCurrentTokenIf(kindIs(.right_parenthesis));
+            if (!right_parenthesis_present)
+                return Error.MissingRightParenthesis;
+
+            const temp = try allocator.create(Expression);
+            errdefer allocator.free(temp);
+            temp.* = .{ .grouping = expression };
+            return temp;
+        }
+
+        return Error.ExpectedExpression;
     }
 };
 
-const non_semantic_token_kinds = EnumSet(Token.Kind)
-    .initMany(&.{
+const non_semantic_token_kinds = EnumSet(Token.Kind).initMany(&.{
     .comment,
     .whitespace,
     .unrecognized,
@@ -164,9 +249,12 @@ fn lex(allocator: Allocator, source: []const u8) (Allocator.Error || Lexer.Error
     var tokens = ArrayList(Token).empty;
     defer tokens.deinit(allocator);
 
-    var lexer = Lexer.init(source).filter(&isSemanticToken);
-    while (try lexer.next()) |token|
+    var lexer = Lexer.init(source);
+    while (lexer.next()) |maybe_token| {
+        const token = try maybe_token;
+        if (!isSemanticToken(token)) continue;
         try tokens.append(allocator, token);
+    }
 
     return try tokens.toOwnedSlice(allocator);
 }
