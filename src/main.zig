@@ -34,6 +34,7 @@ pub fn main(init: std.process.Init) !void {
                 input_output,
                 general_purpose_allocator,
             );
+            log.info("Exiting REPL", .{});
         },
         2 => {
             if (equalIgnoreAsciiCase(command_line_arguments[1], "usage")) {
@@ -48,7 +49,6 @@ pub fn main(init: std.process.Init) !void {
                 general_purpose_allocator,
                 source_file_path,
             );
-            log.info("Exiting REPL", .{});
         },
         else => {
             log.info("{s}", .{usage_message});
