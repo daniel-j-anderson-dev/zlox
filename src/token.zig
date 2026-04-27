@@ -119,9 +119,9 @@ pub const Token = struct {
 
 test "F" {
     std.debug.print("\n", .{});
-    var iter = Token.Kind.keywords.iterator();
-    while (iter.next()) |tk| {
-        const s = @tagName(tk);
+    var keywords = Token.Kind.keywords.iterator();
+    while (keywords.next()) |keyword| {
+        const s = @tagName(keyword);
         std.debug.print("{s}\n", .{s});
     }
 }
