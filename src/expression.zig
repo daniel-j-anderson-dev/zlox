@@ -2,6 +2,7 @@ const std = @import("std");
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const ascii = std.ascii;
+const EnumSet = std.EnumSet;
 
 const zlox = @import("root.zig");
 const Token = zlox.Token;
@@ -18,32 +19,32 @@ pub const Expression = union(enum) {
     pub const Literal = Token;
 
     pub const Unary = struct {
-        operator: Operator,
+        operator: Token,
         right_operator: *Self,
 
-        pub const Operator = enum {
-            minus,
-            bang,
-        };
+        pub const operators = EnumSet(Token.Kind).initMany(&.{
+            .minus,
+            .bang,
+        });
     };
 
     pub const Binary = struct {
-        operator: Operator,
+        operator: Token,
         left_operand: *Self,
         right_operator: *Self,
 
-        pub const Operator = enum {
-            equal,
-            not_equal,
-            less_than,
-            less_than_or_equal,
-            greater_than,
-            greater_than_or_equal,
-            add,
-            subtract,
-            multiply,
-            divide,
-        };
+        pub const operators = EnumSet(Token.Kind).initMany(&.{
+            .equal,
+            .not_equal,
+            .less_than,
+            .less_than_or_equal,
+            .greater_than,
+            .greater_than_or_equal,
+            .add,
+            .subtract,
+            .multiply,
+            .divide,
+        });
     };
 
     pub const Grouping = *Self;
