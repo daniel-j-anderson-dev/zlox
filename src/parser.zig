@@ -57,6 +57,42 @@ pub const Parser = struct {
     // | helpers |
     // +---------+
 
+    fn isCurrentInBounds(self: *const Self) bool {
+        return self.current < self.tokens.len;
+    }
+
+    fn isCurrentOutOfBounds(self: *const Self) bool {
+        return self.current >= self.tokens.len;
+    }
+
+    fn outOfTokens(self: *const Self) bool {
+        return self.isCurrentOutOfBounds() or self.currentToken().kind == .end_of_file;
+    }
+
+    fn tokensAvailable(self: *const Self) bool {
+        return self.isCurrentInBounds() and self.currentToken().kind != .end_of_file;
+    }
+
+    fn currentToken(self: *const Self) Token {
+        return self.tokens[self.current];
+    }
+
+    fn previousToken(self: *const Self) Token {
+        return self.tokens[self.current -| 1];
+    }
+
+    fn consumeCurrentToken(self: *Self) void {
+        if (self.tokensAvailable()) {
+            self.current +|= 1;
+        }
+    }
+
+    fn consumeCurrentTokenOfKind(self: *Self, kinds: EnumSet(Token.Kind)) bool {
+        const should_consume = self.tokensAvailable() and kinds.contains(self.currentToken().kind);
+        if (should_consume) self.consumeCurrentToken();
+        return should_consume;
+    }
+
     // +---------------+
     // | grammar rules |
     // +---------------+
