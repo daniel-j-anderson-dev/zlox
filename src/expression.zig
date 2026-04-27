@@ -137,37 +137,37 @@ test "Expression.toString" {
     _ = Expression.toString;
     const e = Expression{
         .binary = .{
-            .left_operand = a: {
+            .left_operand = a0: {
                 var expr = Expression{
                     .unary = .{
                         .operator = .minus,
-                        .right_operator = b: {
+                        .right_operator = a1: {
                             var e = Expression{
                                 .literal = .{
                                     .kind = .Number,
                                     .lexeme = "123",
                                 },
                             };
-                            break :b &e;
+                            break :a1 &e;
                         },
                     },
                 };
-                break :a &expr;
+                break :a0 &expr;
             },
             .operator = .multiply,
-            .right_operator = c: {
+            .right_operator = a2: {
                 var expr = Expression{
-                    .grouping = d: {
+                    .grouping = a3: {
                         var expr = Expression{
                             .literal = .{
                                 .kind = .Number,
                                 .lexeme = "45.67",
                             },
                         };
-                        break :d &expr;
+                        break :a3 &expr;
                     },
                 };
-                break :c &expr;
+                break :a2 &expr;
             },
         },
     };
