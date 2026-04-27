@@ -3,6 +3,7 @@ const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const EnumSet = std.EnumSet;
 const ascii = std.ascii;
+const log = std.log;
 
 const zlox = @import("root.zig");
 const Token = zlox.Token;
@@ -96,6 +97,55 @@ pub const Parser = struct {
     // +---------------+
     // | grammar rules |
     // +---------------+
+
+    fn expressionRule(self: *Self, allocator: Allocator) Error!*Expression {
+        // TODO
+        log.err("Parser.expressionRule is not implemented", .{});
+        _ = self;
+        _ = allocator;
+    }
+
+    fn equalityRule(self: *Self, allocator: Allocator) Error!*Expression {
+        // TODO
+        log.err("Parser.equalityRule is not implemented", .{});
+        _ = self;
+        _ = allocator;
+    }
+
+    fn comparisonRule(self: *Self, allocator: Allocator) Error!*Expression {
+        // TODO
+        log.err("Parser.comparisonRule is not implemented", .{});
+        _ = self;
+        _ = allocator;
+    }
+
+    fn termRule(self: *Self, allocator: Allocator) Error!*Expression {
+        // TODO
+        log.err("Parser.termRule is not implemented", .{});
+        _ = self;
+        _ = allocator;
+    }
+
+    fn factorRule(self: *Self, allocator: Allocator) Error!*Expression {
+        // TODO
+        log.err("Parser.factorRule is not implemented", .{});
+        _ = self;
+        _ = allocator;
+    }
+
+    fn unaryRule(self: *Self, allocator: Allocator) Error!*Expression {
+        // TODO
+        log.err("Parser.unaryRule is not implemented", .{});
+        _ = self;
+        _ = allocator;
+    }
+
+    fn primaryRule(self: *Self, allocator: Allocator) Error!*Expression {
+        // TODO
+        log.err("Parser.primaryRule is not implemented", .{});
+        _ = self;
+        _ = allocator;
+    }
 };
 
 const non_semantic_token_kinds = EnumSet(Token.Kind)
