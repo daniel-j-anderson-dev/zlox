@@ -51,7 +51,7 @@ pub fn main(init: std.process.Init) !void {
             log.info("Exiting REPL", .{});
         },
         else => {
-            log.err("{s}", .{usage_message});
+            log.info("{s}", .{usage_message});
             return error.TooManyArgs;
         },
     }
