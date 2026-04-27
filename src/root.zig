@@ -11,9 +11,14 @@ pub const runFile = utils.runFile;
 pub const runPrompt = utils.runPrompt;
 pub const equalIgnoreAsciiCase = utils.equalIgnoreAsciiCase;
 
-
 pub const lexer = @import("lexer.zig");
 pub const Lexer = lexer.Lexer;
 
 pub const token = @import("token.zig");
 pub const Token = token.Token;
+
+pub const expression = @import("expression.zig");
+pub const Expression = expression.Expression;
+
+pub const parser = @import("parser.zig");
+pub const Parser = parser.Parser;
