@@ -1,5 +1,6 @@
 const std = @import("std");
 const ascii = std.ascii;
+const stringToEnum = std.meta.stringToEnum;
 
 const zlox = @import("root.zig");
 const Token = zlox.Token;
@@ -12,6 +13,9 @@ pub const Lexer = struct {
     end_of_file_emitted: bool,
 
     const Self = @This();
+    pub const Error = error{
+        UnterminatedStringLiteral,
+    };
 
     pub fn init(source: []const u8) Self {
         return .{
@@ -23,18 +27,9 @@ pub const Lexer = struct {
         };
     }
 
-    pub fn next(self: *Self) !?Token {
-        if (self.outOfSourceBytes()) {
-            if (self.end_of_file_emitted) {
-                return null;
-            } else {
-                self.end_of_file_emitted = true;
-                return .{
-                    .kind = .EndOfFile,
-                    .lexeme = "",
-                };
-            }
-        }
+    pub fn next(self: *Self) ?Error!Token {
+        if (self.outOfSourceBytes())
+            return self.endOfFile() orelse return null;
 
         self.startNewLexeme();
         const current = self.currentByte();
@@ -42,51 +37,26 @@ pub const Lexer = struct {
 
         return .{
             .kind = switch (current) {
-                '(' => .LeftParenthesis,
-                ')' => .RightParenthesis,
-                '{' => .LeftCurlyBrace,
-                '}' => .RightCurlyBrace,
-                ',' => .Comma,
-                '.' => .Dot,
-                '-' => .Minus,
-                '+' => .Plus,
-                ';' => .Semicolon,
-                '*' => .Asterisk,
-                '!' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .BangEqual else .Bang,
-                '=' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .EqualEqual else .Equal,
-                '<' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .LessEqual else .Less,
-                '>' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .GreaterEqual else .Greater,
-                '/' => if (self.extendLexemeIfCurrentByte(isEqual('/'))) a: {
-                    self.extendLexemeWhileCurrentByte(not(isEqual('\n')));
-                    break :a .Comment;
-                } else .Slash,
-                '\n' => a: {
-                    self.nextLine();
-                    break :a .Whitespace;
-                },
-                ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff => a: {
-                    self.extendLexemeWhileCurrentByte(isElementOf(non_new_line_whitespace));
-                    break :a .Whitespace;
-                },
-                '"' => a: {
-                    try self.extendLexemeToStringLiteral();
-                    break :a .String;
-                },
-                '0'...'9' => a: {
-                    self.extendLexemeToNumberLiteral();
-                    break :a .Number;
-                },
-                'A'...'Z', 'a'...'z', '_' => a: {
-                    if (self.extendedLexemeToKeyword()) |keyword_kind| {
-                        break :a keyword_kind;
-                    }
-                    self.extendLexemeWhileCurrentByte(Or(ascii.isAlphanumeric, isEqual('_')));
-                    break :a .Identifier;
-                },
-                else => a: {
-                    self.extendLexemeWhileCurrentByte(not(isElementOf(recognized)));
-                    break :a .Unrecognized;
-                },
+                '(' => .left_parenthesis,
+                ')' => .right_parenthesis,
+                '{' => .left_curly_brace,
+                '}' => .right_curly_brace,
+                ',' => .comma,
+                '.' => .dot,
+                '-' => .minus,
+                '+' => .plus,
+                ';' => .semicolon,
+                '*' => .asterisk,
+                '!' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .bang_equal else .bang,
+                '=' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .equal_equal else .equal,
+                '<' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .less_equal else .less,
+                '>' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .greater_equal else .greater,
+                '/' => if (self.extendLexemeIfCurrentByte(isEqual('/'))) self.comment() else .slash,
+                '"' => try self.stringLiteral(),
+                '0'...'9' => self.numberLiteral(),
+                'A'...'Z', 'a'...'z', '_' => self.identifier(),
+                ' ', '\t', '\n', '\r', ascii.control_code.vt, ascii.control_code.ff => self.whitespace(),
+                else => self.unrecognized(),
             },
             .lexeme = self.lexeme(),
         };
@@ -120,6 +90,11 @@ pub const Lexer = struct {
         self.line_number +|= 1;
     }
 
+    fn accountForNewLinesInLexeme(self: *Self) void {
+        const new_line_count = std.mem.count(u8, self.lexeme(), "\n");
+        self.line_number +|= new_line_count;
+    }
+
     fn extendLexemeIfCurrentByte(self: *Self, predicate: fn (u8) bool) bool {
         if (self.sourceBytesAvailable() and predicate(self.currentByte())) {
             self.extendLexeme();
@@ -133,31 +108,64 @@ pub const Lexer = struct {
         while (self.extendLexemeIfCurrentByte(predicate)) {}
     }
 
-    fn extendLexemeToStringLiteral(self: *Self) !void {
-        self.extendLexemeWhileCurrentByte(not(isEqual('"')));
-        const is_closing_quote_present = self.extendLexemeIfCurrentByte(isEqual('"'));
-
-        if (!is_closing_quote_present)
-            return error.UnterminatedStringLiteral;
-
-        const new_line_count = std.mem.count(u8, self.lexeme(), "\n");
-        self.line_number +|= new_line_count;
+    fn endOfFile(self: *Self) ?Token {
+        if (self.end_of_file_emitted) {
+            return null;
+        } else {
+            self.end_of_file_emitted = true;
+            return .{
+                .kind = .end_of_file,
+                .lexeme = "",
+            };
+        }
     }
 
-    fn extendLexemeToNumberLiteral(self: *Self) void {
+    fn stringLiteral(self: *Self) Error!Token.Kind {
+        self.extendLexemeWhileCurrentByte(not(isEqual('"')));
+        const is_closing_quote_present = self.extendLexemeIfCurrentByte(isEqual('"'));
+        if (!is_closing_quote_present)
+            return Error.UnterminatedStringLiteral;
+        self.accountForNewLinesInLexeme();
+        return .string;
+    }
+
+    fn numberLiteral(self: *Self) Token.Kind {
         self.extendLexemeWhileCurrentByte(ascii.isDigit);
-        if (self.extendLexemeIfCurrentByte(isEqual('.'))) {
+        const is_decimal_present = self.extendLexemeIfCurrentByte(isEqual('.'));
+        if (is_decimal_present)
             self.extendLexemeWhileCurrentByte(ascii.isDigit);
-        }
+        return .number;
     }
 
     fn extendedLexemeToKeyword(self: *Self) ?Token.Kind {
         self.extendLexemeWhileCurrentByte(ascii.isAlphabetic);
-        for (Token.Kind.keywords) |keyword| {
-            const is_lexeme_keyword = std.mem.eql(u8, keyword.lexeme, self.lexeme());
-            if (is_lexeme_keyword) return keyword.kind;
+        const lexeme_kind = stringToEnum(Token.Kind, self.lexeme()) orelse return null;
+        const is_keyword = Token.Kind.keywords.contains(lexeme_kind);
+        return if (is_keyword) lexeme_kind else null;
+    }
+
+    fn identifier(self: *Self) Token.Kind {
+        if (self.extendedLexemeToKeyword()) |keyword_kind| {
+            return keyword_kind;
         }
-        return null;
+        self.extendLexemeWhileCurrentByte(Or(ascii.isAlphanumeric, isEqual('_')));
+        return .identifier;
+    }
+
+    fn whitespace(self: *Self) Token.Kind {
+        self.extendLexemeWhileCurrentByte(isElementOf(&ascii.whitespace));
+        self.accountForNewLinesInLexeme();
+        return .whitespace;
+    }
+
+    fn comment(self: *Self) Token.Kind {
+        self.extendLexemeWhileCurrentByte(not(isEqual('\n')));
+        return .comment;
+    }
+
+    fn unrecognized(self: *Self) Token.Kind {
+        self.extendLexemeWhileCurrentByte(not(isElementOf(recognized)));
+        return .unrecognized;
     }
 };
 
@@ -193,5 +201,4 @@ fn isElementOf(haystack: []const u8) fn (u8) bool {
     }.f;
 }
 
-const non_new_line_whitespace: *const [5]u8 = &.{ ' ', '\t', '\r', ascii.control_code.vt, ascii.control_code.ff };
-const recognized = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz<>./-=!(){}*;\"" ++ non_new_line_whitespace;
+const recognized = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz<>./-=!(){}*;\"" ++ &ascii.whitespace;
