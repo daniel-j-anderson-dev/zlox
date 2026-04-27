@@ -8,10 +8,11 @@ const ascii = std.ascii;
 
 const zlox = @import("root.zig");
 const Lexer = zlox.Lexer;
+const Parser = zlox.Parser;
 
 const buffer_size = 1024;
 
-fn run(io: Io, source_code: []const u8) !void {
+fn run(io: Io, allocator: Allocator, source_code: []const u8) !void {
     // initialize stdout writer
     log.debug("initializing stdout", .{});
     const stdout_file = File.stdout();
@@ -19,19 +20,13 @@ fn run(io: Io, source_code: []const u8) !void {
     var stdout_writer = stdout_file.writer(io, &stdout_buffer);
     var stdout = &stdout_writer.interface;
 
-    log.debug("initializing Lexer", .{});
-    var lexer = Lexer.init(source_code);
+    log.debug("initializing Parser", .{});
+    var parser = try Parser.initAlloc(allocator, source_code);
+    defer parser.deinit(allocator);
+    log.debug("source code lexed. Parser is ready", .{});
 
-    log.debug("printing all tokens in Lexer", .{});
-    while (true) {
-        const token = lexer.next() catch |lexical_error| {
-            log.debug("lexical error: {any}", .{lexical_error});
-            continue;
-        } orelse {
-            log.debug("lexer is out of tokens", .{});
-            break;
-        };
-        log.debug("line number: {d}", .{lexer.line_number});
+    log.debug("printing lexed tokens", .{});
+    for (parser.tokens) |token| {
         try stdout.print("{f}\n", .{token});
         try stdout.flush();
     }
@@ -47,10 +42,10 @@ pub fn runFile(io: Io, allocator: Allocator, path: [:0]const u8) !void {
     );
     defer allocator.free(file_contents);
     log.info("Running file contents", .{});
-    try run(io, file_contents);
+    try run(io, allocator, file_contents);
 }
 
-pub fn runPrompt(io: Io) !void {
+pub fn runPrompt(io: Io, allocator: Allocator) !void {
     // initialize stdout writer
     log.debug("Initializing stdout", .{});
     const stdout_file = File.stdout();
@@ -65,7 +60,6 @@ pub fn runPrompt(io: Io) !void {
     var stdin_reader = stdin_file.reader(io, &stdin_buffer);
     var stdin = &stdin_reader.interface;
 
-    log.info("staring REPL", .{});
     while (true) {
         try stdout.print("> ", .{});
         try stdout.flush();
@@ -73,12 +67,9 @@ pub fn runPrompt(io: Io) !void {
         const raw_line = try stdin.takeDelimiter('\n') orelse break;
         const line = std.mem.trim(u8, raw_line, &ascii.whitespace);
         if (line.len == 0) continue;
-        if (equalIgnoreAsciiCase(line, "exit")) {
-            log.info("Exiting REPL", .{});
-            break;
-        }
+        if (equalIgnoreAsciiCase(line, "exit")) break;
 
-        try run(io, line);
+        try run(io, allocator, line);
     }
 }
 
