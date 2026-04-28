@@ -1,9 +1,6 @@
 const std = @import("std");
-const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
 const EnumSet = std.EnumSet;
-const ascii = std.ascii;
-const log = std.log;
 
 const zlox = @import("root.zig");
 const Token = zlox.Token;
@@ -23,12 +20,10 @@ pub const Parser = struct {
     // +---------+
 
     pub const Self = @This();
-    pub const InitError = Allocator.Error || Lexer.Error;
     pub const Error = error{
         MissingRightParenthesis,
         ExpectedExpression,
-        UnaryExpressionMissionOperand,
-    } || InitError;
+    } || Allocator.Error;
 
     // +---------------------------------+
     // | initializers and deinitializers |
@@ -38,21 +33,7 @@ pub const Parser = struct {
         return .{
             .tokens = tokens,
             .current = 0,
-            .error_token = null,
         };
-    }
-
-    pub fn initAlloc(allocator: Allocator, source: []const u8) InitError!Self {
-        const tokens = try lex(allocator, source);
-        return Self.init(tokens);
-    }
-
-    /// Must be called with the same allocator passed to `Parser.initAlloc`.
-    /// If `self` was constructed with `Parser.init` the owner of `Parser.tokens` must deallocate
-    pub fn deinit(self: *Self, allocator: Allocator) void {
-        allocator.free(self.tokens);
-        self.tokens = &.{};
-        self.current = 0;
     }
 
     // +---------+
@@ -249,18 +230,3 @@ pub const Parser = struct {
         return Error.ExpectedExpression;
     }
 };
-
-/// The caller owns the returned slice; it must be deallocated with the same `Allocator` passed to this function
-fn lex(allocator: Allocator, source: []const u8) (Allocator.Error || Lexer.Error)![]const Token {
-    var tokens = ArrayList(Token).empty;
-    defer tokens.deinit(allocator);
-
-    var lexer = Lexer.init(source);
-    while (lexer.next()) |maybe_token| {
-        const token = try maybe_token;
-        if (Token.Kind.non_semantic.contains(token.kind)) continue;
-        try tokens.append(allocator, token);
-    }
-
-    return try tokens.toOwnedSlice(allocator);
-}
