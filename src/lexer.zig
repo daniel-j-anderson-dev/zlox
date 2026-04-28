@@ -1,9 +1,26 @@
 const std = @import("std");
 const ascii = std.ascii;
+const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;
 const stringToEnum = std.meta.stringToEnum;
 
 const zlox = @import("root.zig");
 const Token = zlox.Token;
+
+/// The caller owns the returned slice; it must be deallocated with the same `Allocator` passed to this function
+pub fn lexEagerAlloc(allocator: Allocator, source: []const u8) (Allocator.Error || Lexer.Error)![]const Token {
+    var tokens = ArrayList(Token).empty;
+    defer tokens.deinit(allocator);
+
+    var lexer = Lexer.init(source);
+    while (lexer.next()) |maybe_token| {
+        const token = try maybe_token;
+        if (Token.Kind.non_semantic.contains(token.kind)) continue;
+        try tokens.append(allocator, token);
+    }
+
+    return try tokens.toOwnedSlice(allocator);
+}
 
 pub const Lexer = struct {
     source: []const u8,

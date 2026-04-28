@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const ascii = std.ascii;
 
 const zlox = @import("root.zig");
-const Lexer = zlox.Lexer;
+const lexEagerAlloc = zlox.lexEagerAlloc;
 const Parser = zlox.Parser;
 const Expression = zlox.Expression;
 
@@ -21,20 +21,23 @@ fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
     var stdout_writer = stdout_file.writer(io, &stdout_buffer);
     var stdout = &stdout_writer.interface;
 
-    log.debug("initializing Parser", .{});
-    var parser = Parser.initAlloc(allocator, source_code) catch |init_error| {
-        if (init_error == error.UnterminatedStringLiteral) {
-            log.err("failed to lex source: {any}", .{init_error});
+    log.debug("lexing source code into tokens", .{});
+    const tokens = lexEagerAlloc(allocator, source_code) catch |lex_eager_error| {
+        if (lex_eager_error == error.UnterminatedStringLiteral) {
+            log.err("failed to lex source: {any}", .{lex_eager_error});
             return;
         }
-        return init_error;
+        return lex_eager_error;
     };
-    defer parser.deinit(allocator);
+    defer allocator.free(tokens);
+
+    log.debug("initializing parser", .{});
+    var parser = Parser.init(tokens);
 
     log.debug("printing expressions from parser", .{});
     while (true) {
         log.debug("attempt to parse expression", .{});
-        const e = parser.expressionRule(allocator) catch |parse_error| {
+        const expression = parser.expressionRule(allocator) catch |parse_error| {
             if (parser.outOfTokens()) {
                 log.debug("parser is out of tokens", .{});
             } else {
@@ -42,9 +45,11 @@ fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
             }
             break;
         };
-        defer e.deinit(allocator);
+        defer {
+            expression.deinit(allocator);
+        }
 
-        const s = try e.toPolishNotationAlloc(allocator);
+        const s = try expression.toPolishNotationAlloc(allocator);
         defer allocator.free(s);
 
         try stdout.print("{s}\n", .{s});

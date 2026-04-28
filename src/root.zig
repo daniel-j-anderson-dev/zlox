@@ -12,6 +12,7 @@ pub const runPrompt = utils.runPrompt;
 pub const equalIgnoreAsciiCase = utils.equalIgnoreAsciiCase;
 
 pub const lexer = @import("lexer.zig");
+pub const lexEagerAlloc = lexer.lexEagerAlloc;
 pub const Lexer = lexer.Lexer;
 
 pub const token = @import("token.zig");
