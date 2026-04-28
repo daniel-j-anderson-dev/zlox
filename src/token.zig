@@ -88,6 +88,13 @@ pub const Token = struct {
             .@"while",
         });
 
+        pub const non_semantic = EnumSet(Token.Kind).initMany(&.{
+            .comment,
+            .whitespace,
+            .unrecognized,
+        });
+        pub const semantic = Token.Kind.non_semantic.complement();
+
         pub const equality_operators = EnumSet(Token.Kind).initMany(&.{ .bang_equal, .equal_equal });
         pub const comparison_operators = EnumSet(Token.Kind).initMany(&.{
             .less,

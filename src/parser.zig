@@ -38,6 +38,7 @@ pub const Parser = struct {
         return .{
             .tokens = tokens,
             .current = 0,
+            .error_token = null,
         };
     }
 
@@ -250,16 +251,6 @@ pub const Parser = struct {
     }
 };
 
-const non_semantic_token_kinds = EnumSet(Token.Kind).initMany(&.{
-    .comment,
-    .whitespace,
-    .unrecognized,
-});
-const semantic_token_kinds = non_semantic_token_kinds.complement();
-fn isSemanticToken(token: Token) bool {
-    return semantic_token_kinds.contains(token.kind);
-}
-
 /// The caller owns the returned slice; it must be deallocated with the same `Allocator` passed to this function
 fn lex(allocator: Allocator, source: []const u8) (Allocator.Error || Lexer.Error)![]const Token {
     var tokens = ArrayList(Token).empty;
@@ -268,7 +259,7 @@ fn lex(allocator: Allocator, source: []const u8) (Allocator.Error || Lexer.Error
     var lexer = Lexer.init(source);
     while (lexer.next()) |maybe_token| {
         const token = try maybe_token;
-        if (!isSemanticToken(token)) continue;
+        if (Token.Kind.non_semantic.contains(token.kind)) continue;
         try tokens.append(allocator, token);
     }
 
