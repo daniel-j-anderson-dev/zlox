@@ -100,9 +100,9 @@ pub const Parser = struct {
     fn kindIs(x: anytype) fn (Token) bool {
         const X = @TypeOf(x);
         switch (X) {
-            Token.Kind => return struct {
+            Token.Kind, @EnumLiteral() => return struct {
                 pub fn f(token: Token) bool {
-                    return x == token.kind;
+                    return @as(Token.Kind, x) == token.kind;
                 }
             }.f,
             EnumSet(Token.Kind) => return struct {
@@ -118,21 +118,25 @@ pub const Parser = struct {
     // | grammar rules |
     // +---------------+
 
-    fn expressionRule(self: *Self, allocator: Allocator) Error!*Expression {
+    pub fn expressionRule(self: *Self, allocator: Allocator) Error!*Expression {
         return try self.equalityRule(allocator);
     }
 
     fn equalityRule(self: *Self, allocator: Allocator) Error!*Expression {
         var expression = try self.comparisonRule(allocator);
-        errdefer allocator.free(expression);
+        errdefer expression.deinit(allocator);
 
         while (self.consumeCurrentTokenIf(kindIs(Token.Kind.equality_operators))) {
+            const operator = self.previousToken();
+
+            const right_operand = try self.comparisonRule(allocator);
+            errdefer right_operand.deinit(allocator);
+
             const temp = try allocator.create(Expression);
-            errdefer allocator.free(temp);
             temp.* = .{ .binary = .{
                 .left_operand = expression,
-                .operator = self.previousToken(),
-                .right_operand = try self.comparisonRule(allocator),
+                .operator = operator,
+                .right_operand = right_operand,
             } };
             expression = temp;
         }
@@ -141,16 +145,19 @@ pub const Parser = struct {
     }
 
     fn comparisonRule(self: *Self, allocator: Allocator) Error!*Expression {
-        var expression = try self.comparisonRule(allocator);
-        errdefer allocator.free(expression);
+        var expression = try self.termRule(allocator);
+        errdefer expression.deinit(allocator);
 
         while (self.consumeCurrentTokenIf(kindIs(Token.Kind.comparison_operators))) {
+            const operator = self.previousToken();
+            const right_operand = try self.termRule(allocator);
+            errdefer right_operand.deinit(allocator);
+
             const temp = try allocator.create(Expression);
-            errdefer allocator.free(temp);
             temp.* = .{ .binary = .{
                 .left_operand = expression,
-                .operator = self.previousToken(),
-                .right_operand = try self.termRule(allocator),
+                .operator = operator,
+                .right_operand = right_operand,
             } };
             expression = temp;
         }
@@ -159,16 +166,19 @@ pub const Parser = struct {
     }
 
     fn termRule(self: *Self, allocator: Allocator) Error!*Expression {
-        var expression = try self.comparisonRule(allocator);
-        errdefer allocator.free(expression);
+        var expression = try self.factorRule(allocator);
+        errdefer expression.deinit(allocator);
 
         while (self.consumeCurrentTokenIf(kindIs(Token.Kind.term_operators))) {
+            const operator = self.previousToken();
+            const right_operand = try self.factorRule(allocator);
+            errdefer right_operand.deinit(allocator);
+
             const temp = try allocator.create(Expression);
-            errdefer allocator.free(temp);
             temp.* = .{ .binary = .{
                 .left_operand = expression,
-                .operator = self.previousToken(),
-                .right_operand = try self.factorRule(allocator),
+                .operator = operator,
+                .right_operand = right_operand,
             } };
             expression = temp;
         }
@@ -177,16 +187,19 @@ pub const Parser = struct {
     }
 
     fn factorRule(self: *Self, allocator: Allocator) Error!*Expression {
-        var expression = try self.comparisonRule(allocator);
-        errdefer allocator.free(expression);
+        var expression = try self.unaryRule(allocator);
+        errdefer expression.deinit(allocator);
 
         while (self.consumeCurrentTokenIf(kindIs(Token.Kind.factor_operators))) {
+            const operator = self.previousToken();
+            const right_operand = try self.unaryRule(allocator);
+            errdefer right_operand.deinit(allocator);
+
             const temp = try allocator.create(Expression);
-            errdefer allocator.free(temp);
             temp.* = .{ .binary = .{
                 .left_operand = expression,
-                .operator = self.previousToken(),
-                .right_operand = try self.unaryRule(allocator),
+                .operator = operator,
+                .right_operand = right_operand,
             } };
             expression = temp;
         }
@@ -196,37 +209,40 @@ pub const Parser = struct {
 
     fn unaryRule(self: *Self, allocator: Allocator) Error!*Expression {
         if (self.consumeCurrentTokenIf(kindIs(Token.Kind.unary_operators))) {
+            const operator = self.previousToken();
+            const right_operand = try self.unaryRule(allocator);
+            errdefer right_operand.deinit(allocator);
+
             const temp = try allocator.create(Expression);
-            errdefer allocator.free(temp);
-            temp.* = .{
-                .unary = .{
-                    .operator = self.previousToken(),
-                    .right_operator = try self.unaryRule(allocator),
-                },
-            };
+            temp.* = .{ .unary = .{
+                .operator = operator,
+                .right_operand = right_operand,
+            } };
+            return temp;
         } else {
-            try self.primaryRule(allocator);
+            return try self.primaryRule(allocator);
         }
     }
 
     fn primaryRule(self: *Self, allocator: Allocator) Error!*Expression {
         if (self.consumeCurrentTokenIf(kindIs(Token.Kind.literal_values))) {
+            const literal = self.previousToken();
+
             const temp = try allocator.create(Expression);
-            errdefer allocator.free(temp);
-            temp.* = .{ .literal = self.previousToken() };
+            temp.* = .{ .literal = literal };
             return temp;
         }
 
         if (self.consumeCurrentTokenIf(kindIs(.left_parenthesis))) {
-            const expression = try self.expressionRule(allocator);
-            errdefer allocator.free(expression);
+            const grouping = try self.expressionRule(allocator);
+            errdefer grouping.deinit(allocator);
+
             const right_parenthesis_present = self.consumeCurrentTokenIf(kindIs(.right_parenthesis));
             if (!right_parenthesis_present)
                 return Error.MissingRightParenthesis;
 
             const temp = try allocator.create(Expression);
-            errdefer allocator.free(temp);
-            temp.* = .{ .grouping = expression };
+            temp.* = .{ .grouping = grouping };
             return temp;
         }
 
