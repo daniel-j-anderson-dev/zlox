@@ -9,7 +9,6 @@ const ascii = std.ascii;
 const zlox = @import("root.zig");
 const Lexer = zlox.Lexer;
 const Parser = zlox.Parser;
-const expression = zlox.expression;
 const Expression = zlox.Expression;
 
 const buffer_size = 1024;
