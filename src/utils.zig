@@ -22,13 +22,24 @@ fn run(io: Io, allocator: Allocator, source_code: []const u8) !void {
     var stdout = &stdout_writer.interface;
 
     log.debug("initializing Parser", .{});
-    var parser = try Parser.initAlloc(allocator, source_code);
+    var parser = Parser.initAlloc(allocator, source_code) catch |init_error| {
+        if (init_error == error.UnterminatedStringLiteral) {
+            log.err("failed to lex source: {any}", .{init_error});
+            return;
+        }
+        return init_error;
+    };
     defer parser.deinit(allocator);
-    log.debug("source code lexed. Parser is ready", .{});
 
+    log.debug("printing expressions from parser", .{});
     while (true) {
-        const e = parser.expressionRule(allocator) catch |e| {
-            log.info("parse error: {any}", .{e});
+        log.debug("attempt to parse expression", .{});
+        const e = parser.expressionRule(allocator) catch |parse_error| {
+            if (parser.outOfTokens()) {
+                log.debug("parser is out of tokens", .{});
+            } else {
+                log.err("failed to parse source: {any}", .{parse_error});
+            }
             break;
         };
         defer e.deinit(allocator);
@@ -56,14 +67,14 @@ pub fn runFile(io: Io, allocator: Allocator, path: [:0]const u8) !void {
 
 pub fn runPrompt(io: Io, allocator: Allocator) !void {
     // initialize stdout writer
-    log.debug("Initializing stdout", .{});
+    log.debug("initializing stdout", .{});
     const stdout_file = File.stdout();
     var stdout_buffer: [buffer_size]u8 = undefined;
     var stdout_writer = stdout_file.writer(io, &stdout_buffer);
     var stdout = &stdout_writer.interface;
 
     // initialize stdin reader
-    log.debug("lexer is out of tokens", .{});
+    log.debug("initializing stdin", .{});
     const stdin_file = File.stdin();
     var stdin_buffer: [buffer_size]u8 = undefined;
     var stdin_reader = stdin_file.reader(io, &stdin_buffer);
