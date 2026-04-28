@@ -13,7 +13,7 @@ const Expression = zlox.Expression;
 
 const buffer_size = 1024;
 
-fn run(io: Io, allocator: Allocator, source_code: []const u8) !void {
+fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
     // initialize stdout writer
     log.debug("initializing stdout", .{});
     const stdout_file = File.stdout();
@@ -52,7 +52,7 @@ fn run(io: Io, allocator: Allocator, source_code: []const u8) !void {
     }
 }
 
-pub fn runFile(io: Io, allocator: Allocator, path: [:0]const u8) !void {
+pub fn runFile(allocator: Allocator, io: Io, path: [:0]const u8) !void {
     log.debug("Reading contents of {s}", .{path});
     const file_contents = try Dir.cwd().readFileAlloc(
         io,
@@ -62,10 +62,10 @@ pub fn runFile(io: Io, allocator: Allocator, path: [:0]const u8) !void {
     );
     defer allocator.free(file_contents);
     log.info("Running file contents", .{});
-    try run(io, allocator, file_contents);
+    try run(allocator, io, file_contents);
 }
 
-pub fn runPrompt(io: Io, allocator: Allocator) !void {
+pub fn runPrompt(allocator: Allocator, io: Io) !void {
     // initialize stdout writer
     log.debug("initializing stdout", .{});
     const stdout_file = File.stdout();
@@ -89,7 +89,7 @@ pub fn runPrompt(io: Io, allocator: Allocator) !void {
         if (line.len == 0) continue;
         if (equalIgnoreAsciiCase(line, "exit")) break;
 
-        try run(io, allocator, line);
+        try run(allocator, io, line);
     }
 }
 

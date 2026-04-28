@@ -25,14 +25,14 @@ pub fn main(init: std.process.Init) !void {
 
     const input_output = init.io;
 
-    const general_purpose_allocator = init.gpa;
+    const allocator = init.gpa;
 
     switch (command_line_arguments.len) {
         0, 1 => {
             log.info("Starting lox REPL", .{});
             try zlox.runPrompt(
+                allocator,
                 input_output,
-                general_purpose_allocator,
             );
             log.info("Exiting REPL", .{});
         },
@@ -45,8 +45,8 @@ pub fn main(init: std.process.Init) !void {
             const source_file_path = command_line_arguments[1];
             log.info("Running file: {s}", .{source_file_path});
             try zlox.runFile(
+                allocator,
                 input_output,
-                general_purpose_allocator,
                 source_file_path,
             );
         },
