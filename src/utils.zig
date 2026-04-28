@@ -9,6 +9,8 @@ const ascii = std.ascii;
 const zlox = @import("root.zig");
 const Lexer = zlox.Lexer;
 const Parser = zlox.Parser;
+const expression = zlox.expression;
+const Expression = zlox.Expression;
 
 const buffer_size = 1024;
 
@@ -25,9 +27,17 @@ fn run(io: Io, allocator: Allocator, source_code: []const u8) !void {
     defer parser.deinit(allocator);
     log.debug("source code lexed. Parser is ready", .{});
 
-    log.debug("printing lexed tokens", .{});
-    for (parser.tokens) |token| {
-        try stdout.print("{f}\n", .{token});
+    while (true) {
+        const e = parser.expressionRule(allocator) catch |e| {
+            log.info("parse error: {any}", .{e});
+            break;
+        };
+        defer e.deinit(allocator);
+
+        const s = try e.toPolishNotationAlloc(allocator);
+        defer allocator.free(s);
+
+        try stdout.print("{s}\n", .{s});
         try stdout.flush();
     }
 }
