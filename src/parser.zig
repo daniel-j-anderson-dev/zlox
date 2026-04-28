@@ -66,7 +66,7 @@ pub const Parser = struct {
         return self.current >= self.tokens.len;
     }
 
-    fn outOfTokens(self: *const Self) bool {
+    pub fn outOfTokens(self: *const Self) bool {
         return self.isCurrentOutOfBounds() or self.currentToken().kind == .end_of_file;
     }
 
