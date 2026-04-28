@@ -20,67 +20,38 @@ pub const Expression = union(enum) {
 
     pub const Unary = struct {
         operator: Token,
-        right_operator: *Self,
-
-        pub const operators = EnumSet(Token.Kind).initMany(&.{
-            .minus,
-            .bang,
-        });
+        right_operand: *Self,
     };
 
     pub const Binary = struct {
         operator: Token,
         left_operand: *Self,
-        right_operator: *Self,
-
-        pub const operators = EnumSet(Token.Kind).initMany(&.{
-            .equal,
-            .not_equal,
-            .less_than,
-            .less_than_or_equal,
-            .greater_than,
-            .greater_than_or_equal,
-            .add,
-            .subtract,
-            .multiply,
-            .divide,
-        });
+        right_operand: *Self,
     };
 
     pub const Grouping = *Self;
 
+    pub fn deinit(self: *Self, allocator: Allocator) void {
+        switch (self.*) {
+            .literal => {},
+            .unary => |unary| unary.right_operand.deinit(allocator),
+            .binary => |binary| {
+                binary.left_operand.deinit(allocator);
+                binary.right_operand.deinit(allocator);
+            },
+            .grouping => |inner| inner.deinit(allocator),
+        }
+        allocator.destroy(self);
+    }
+
     /// Caller owns the returned slice; it must be freed with the same allocator.
-    pub fn toStringAlloc(
+    pub fn toPolishNotationAlloc(
         self: *const Self,
         allocator: Allocator,
     ) Allocator.Error![]u8 {
         return expressionToPolishNotationAlloc(allocator, self);
     }
 };
-
-fn operatorName(operator: anytype) []const u8 {
-    const Operator = @TypeOf(operator);
-    return if (Operator == Expression.Unary.Operator)
-        switch (operator) {
-            .minus => "-",
-            .bang => "!",
-        }
-    else if (Operator == Expression.Binary.Operator)
-        switch (operator) {
-            .equal => "==",
-            .not_equal => "!=",
-            .less_than => "<",
-            .less_than_or_equal => "<=",
-            .greater_than => ">=",
-            .greater_than_or_equal => ">",
-            .add => "+",
-            .subtract => "-",
-            .multiply => "*",
-            .divide => "/",
-        }
-    else
-        @compileError("expression.operatorName only supports Expression.Unary.Operator, Expression.Binary.Operator");
-}
 
 /// Caller owns the returned slice; it must be freed with the same allocator.
 fn parenthesize(
@@ -115,13 +86,13 @@ pub fn expressionToPolishNotationAlloc(
         .literal => |token| token.lexeme,
         .unary => |unary| try parenthesize(
             allocator,
-            operatorName(unary.operator),
-            &.{unary.right_operator},
+            unary.operator.lexeme,
+            &.{unary.right_operand},
         ),
         .binary => |binary| try parenthesize(
             allocator,
-            operatorName(binary.operator),
-            &.{ binary.left_operand, binary.right_operator },
+            binary.operator.lexeme,
+            &.{ binary.left_operand, binary.right_operand },
         ),
         .grouping => |inner| try parenthesize(
             allocator,
@@ -135,16 +106,16 @@ pub fn expressionToPolishNotationAlloc(
     return output.toOwnedSlice(allocator);
 }
 
-test "Expression.toStringAlloc" {
+test "Expression.expressionToPolishNotationAlloc" {
     _ = Expression;
-    _ = Expression.toStringAlloc;
+    _ = Expression.expressionToPolishNotationAlloc;
     const expr = Expression{
         .binary = .{
             .left_operand = a0: {
                 var expr = Expression{
                     .unary = .{
                         .operator = .minus,
-                        .right_operator = a1: {
+                        .right_operand = a1: {
                             var expr_ = Expression{
                                 .literal = .{
                                     .kind = .number,
@@ -158,7 +129,7 @@ test "Expression.toStringAlloc" {
                 break :a0 &expr;
             },
             .operator = .multiply,
-            .right_operator = a2: {
+            .right_operand = a2: {
                 var expr = Expression{
                     .grouping = a3: {
                         var expr = Expression{
@@ -175,7 +146,7 @@ test "Expression.toStringAlloc" {
         },
     };
     const expected = "(* (- 123) (group 45.67))";
-    const actual = try expr.toStringAlloc(std.testing.allocator);
+    const actual = try expr.expressionToPolishNotationAlloc(std.testing.allocator);
     defer std.testing.allocator.free(actual);
     std.debug.print("\n\n", .{});
     std.debug.print("expected = {s}\n", .{expected});
