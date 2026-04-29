@@ -1,18 +1,23 @@
 const std = @import("std");
 const Io = std.Io;
 const EnumSet = std.EnumSet;
+const trim = std.mem.trim;
+const ascii = std.ascii;
 
 pub const Token = struct {
     kind: Kind,
     lexeme: []const u8,
+    line_number: usize,
 
     const Self = @This();
 
     pub fn format(self: *const Self, writer: *Io.Writer) !void {
-        if (self.kind == .whitespace) {
-            try writer.print("{s:>16}; {any}", .{ @tagName(self.kind), self.lexeme });
-        } else {
-            try writer.print("{s:>16}; \"{s}\"", .{ @tagName(self.kind), self.lexeme });
+        try writer.print("ln: {d:>3}; {s:>17}; ", .{ self.line_number, @tagName(self.kind) });
+
+        switch (self.kind) {
+            .whitespace => try writer.print("{any}", .{self.lexeme}),
+            .comment => try writer.print("{s}", .{trim(u8, self.lexeme, &ascii.whitespace)}),
+            else => try writer.print("{s}", .{self.lexeme}),
         }
     }
 
@@ -121,6 +126,13 @@ pub const Token = struct {
             .number,
             .string,
         });
+
+        const longest_field_name_length = a: {
+            var max = 0;
+            for (@typeInfo(Token.Kind).@"enum".fields) |tk|
+                max = @max(max, tk.name.len);
+            break :a max;
+        };
     };
 };
 
@@ -131,4 +143,8 @@ test "F" {
         const s = @tagName(keyword);
         std.debug.print("{s}\n", .{s});
     }
+}
+
+test "Token.Kind.longest_field_name_length" {
+    std.debug.print("\n\n{d}\n\n", .{Token.Kind.longest_field_name_length});
 }
