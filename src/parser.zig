@@ -14,6 +14,7 @@ pub const Parser = struct {
 
     tokens: []const Token,
     current: usize,
+    error_token: ?*const Token,
 
     // +---------+
     // | types   |
@@ -33,6 +34,7 @@ pub const Parser = struct {
         return .{
             .tokens = tokens,
             .current = 0,
+            .error_token = null,
         };
     }
 
@@ -219,14 +221,17 @@ pub const Parser = struct {
             errdefer grouping.deinit(allocator);
 
             const right_parenthesis_present = self.consumeCurrentTokenIf(kindIs(.right_parenthesis));
-            if (!right_parenthesis_present)
+            if (!right_parenthesis_present) {
+                self.error_token = &self.tokens[self.current];
                 return Error.MissingRightParenthesis;
+            }
 
             const temp = try allocator.create(Expression);
             temp.* = .{ .grouping = grouping };
             return temp;
         }
 
+        self.error_token = &self.tokens[self.current];
         return Error.ExpectedExpression;
     }
 };
