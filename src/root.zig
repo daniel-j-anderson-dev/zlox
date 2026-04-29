@@ -6,7 +6,6 @@ const Allocator = std.mem.Allocator;
 
 pub const utils = @import("utils.zig");
 pub const run = utils.run;
-pub const readFileBytes = utils.readFileBytes;
 pub const runFile = utils.runFile;
 pub const runPrompt = utils.runPrompt;
 pub const equalIgnoreAsciiCase = utils.equalIgnoreAsciiCase;
@@ -23,3 +22,5 @@ pub const Expression = expression.Expression;
 
 pub const parser = @import("parser.zig");
 pub const Parser = parser.Parser;
+
+pub const interpreter = @import("interpreter.zig");
