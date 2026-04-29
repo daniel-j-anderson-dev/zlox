@@ -2,6 +2,7 @@ const std = @import("std");
 const ascii = std.ascii;
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
+const log = std.log;
 const stringToEnum = std.meta.stringToEnum;
 
 const zlox = @import("root.zig");
@@ -15,7 +16,12 @@ pub fn lexEagerAlloc(allocator: Allocator, source: []const u8) (Allocator.Error 
     var lexer = Lexer.init(source);
     while (lexer.next()) |maybe_token| {
         const token = try maybe_token;
-        if (Token.Kind.non_semantic.contains(token.kind)) continue;
+        const is_non_semantic_token = Token.Kind.non_semantic.contains(token.kind);
+        log.debug("{f}", .{token});
+        if (is_non_semantic_token) {
+            // log.debug("non-semantic token skipped", .{});
+            continue;
+        }
         try tokens.append(allocator, token);
     }
 
@@ -52,30 +58,35 @@ pub const Lexer = struct {
         const current = self.currentByte();
         self.extendLexeme();
 
-        return .{
-            .kind = switch (current) {
-                '(' => .left_parenthesis,
-                ')' => .right_parenthesis,
-                '{' => .left_curly_brace,
-                '}' => .right_curly_brace,
-                ',' => .comma,
-                '.' => .dot,
-                '-' => .minus,
-                '+' => .plus,
-                ';' => .semicolon,
-                '*' => .asterisk,
-                '!' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .bang_equal else .bang,
-                '=' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .equal_equal else .equal,
-                '<' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .less_equal else .less,
-                '>' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .greater_equal else .greater,
-                '/' => if (self.extendLexemeIfCurrentByte(isEqual('/'))) self.comment() else .slash,
-                '"' => try self.stringLiteral(),
-                '0'...'9' => self.numberLiteral(),
-                'A'...'Z', 'a'...'z', '_' => self.identifier(),
-                ' ', '\t', '\n', '\r', ascii.control_code.vt, ascii.control_code.ff => self.whitespace(),
-                else => self.unrecognized(),
-            },
-            .lexeme = self.lexeme(),
+        const line_number = self.line_number;
+        const kind: Token.Kind = switch (current) {
+            '(' => .left_parenthesis,
+            ')' => .right_parenthesis,
+            '{' => .left_curly_brace,
+            '}' => .right_curly_brace,
+            ',' => .comma,
+            '.' => .dot,
+            '-' => .minus,
+            '+' => .plus,
+            ';' => .semicolon,
+            '*' => .asterisk,
+            '!' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .bang_equal else .bang,
+            '=' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .equal_equal else .equal,
+            '<' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .less_equal else .less,
+            '>' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .greater_equal else .greater,
+            '/' => if (self.extendLexemeIfCurrentByte(isEqual('/'))) self.comment() else .slash,
+            '"' => try self.stringLiteral(),
+            '0'...'9' => self.numberLiteral(),
+            'A'...'Z', 'a'...'z', '_' => self.identifier(),
+            ' ', '\t', '\n', '\r', ascii.control_code.vt, ascii.control_code.ff => self.whitespace(),
+            else => self.unrecognized(),
+        };
+        const lexeme_ = self.lexeme();
+
+        return Token {
+            .kind = kind,
+            .lexeme = lexeme_,
+            .line_number = line_number
         };
     }
 
@@ -133,6 +144,7 @@ pub const Lexer = struct {
             return .{
                 .kind = .end_of_file,
                 .lexeme = "",
+                .line_number = self.line_number,
             };
         }
     }
