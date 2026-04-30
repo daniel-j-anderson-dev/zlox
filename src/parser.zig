@@ -82,6 +82,19 @@ pub const Parser = struct {
         }
     }
 
+    fn synchronize(self: *Self) void {
+        const statement_boundary = comptime EnumSet(Token.Kind).initMany(&.{ .class, .fun, .@"var", .@"for", .@"if", .@"while", .print, .@"return" });
+
+        self.consumeCurrentToken();
+        while (self.currentTokenAvailable()) {
+            const previous = self.previousToken();
+            const current = self.currentToken();
+            const is_statement_boundary = previous.kind == .semicolon or statement_boundary.contains(current.kind);
+            if (is_statement_boundary) return;
+            self.consumeCurrentToken();
+        }
+    }
+
     // +------------------+
     // | the whole point! |
     // +------------------+
