@@ -12,7 +12,7 @@ pub const Token = struct {
     const Self = @This();
 
     pub fn format(self: *const Self, writer: *Io.Writer) !void {
-        try writer.print("ln: {d:>3}; {s:>17}; ", .{ self.line_number, @tagName(self.kind) });
+        try writer.print("ln: {d:>3}; {s:>" ++ Token.Kind.longest_field_name_length_string ++ "}; ", .{ self.line_number, @tagName(self.kind) });
 
         switch (self.kind) {
             .whitespace => try writer.print("{any}", .{self.lexeme}),
@@ -100,7 +100,10 @@ pub const Token = struct {
         });
         pub const semantic = Token.Kind.non_semantic.complement();
 
-        pub const equality_operators = EnumSet(Token.Kind).initMany(&.{ .bang_equal, .equal_equal });
+        pub const equality_operators = EnumSet(Token.Kind).initMany(&.{
+            .bang_equal,
+            .equal_equal,
+        });
         pub const comparison_operators = EnumSet(Token.Kind).initMany(&.{
             .less,
             .less_equal,
@@ -133,6 +136,8 @@ pub const Token = struct {
                 max = @max(max, tk.name.len);
             break :a max;
         };
+
+        const longest_field_name_length_string = std.fmt.comptimePrint("{d}", .{longest_field_name_length});
     };
 };
 
