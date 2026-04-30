@@ -24,6 +24,7 @@ pub const Parser = struct {
     pub const Error = error{
         MissingRightParenthesis,
         ExpectedExpression,
+        NotImplemented,
     } || Allocator.Error;
 
     // +---------------------------------+
@@ -72,7 +73,7 @@ pub const Parser = struct {
         }
     }
 
-    fn consumeCurrentTokenIf(self: *Self, predicate: fn (Token) bool) bool {
+    fn consumeTokenIf(self: *Self, predicate: fn (Token) bool) bool {
         if (self.currentTokenAvailable() and predicate(self.currentToken())) {
             self.consumeCurrentToken();
             return true;
@@ -81,28 +82,19 @@ pub const Parser = struct {
         }
     }
 
-    fn kindIs(x: anytype) fn (Token) bool {
-        const X = @TypeOf(x);
-        switch (X) {
-            Token.Kind, @EnumLiteral() => return struct {
-                pub fn f(token: Token) bool {
-                    return @as(Token.Kind, x) == token.kind;
-                }
-            }.f,
-            EnumSet(Token.Kind) => return struct {
-                pub fn f(token: Token) bool {
-                    return x.contains(token.kind);
-                }
-            }.f,
-            else => @compileError("parser.Parser.tokenKindIs is only compatible with Token.Kind and EnumSet(Token.Kind)"),
-        }
+    // +------------------+
+    // | the whole point! |
+    // +------------------+
+
+    pub fn parse(self: *Self, allocator: Allocator) Error!*Expression {
+        return self.expressionRule(allocator);
     }
 
     // +---------------+
     // | grammar rules |
     // +---------------+
 
-    pub fn expressionRule(self: *Self, allocator: Allocator) Error!*Expression {
+    fn expressionRule(self: *Self, allocator: Allocator) Error!*Expression {
         return try self.equalityRule(allocator);
     }
 
@@ -110,8 +102,16 @@ pub const Parser = struct {
         var left_operand = try self.comparisonRule(allocator);
         errdefer left_operand.deinit(allocator);
 
-        while (self.consumeCurrentTokenIf(kindIs(Token.Kind.equality_operators))) {
-            const operator = self.previousToken();
+        while (self.consumeTokenIf(is(Token.Kind.equality_operators))) {
+            const consumed_token = self.previousToken();
+            const operator = Expression.Binary.Operator {
+                .token = consumed_token,
+                .kind = switch (consumed_token.kind) {
+                    .bang_equal => .not_equal,
+                    .equal_equal => .equal,
+                    else => unreachable, // unreachable because of while predicate
+                },
+            };
             const right_operand = try self.comparisonRule(allocator);
             errdefer right_operand.deinit(allocator);
 
@@ -131,8 +131,18 @@ pub const Parser = struct {
         var left_operand = try self.termRule(allocator);
         errdefer left_operand.deinit(allocator);
 
-        while (self.consumeCurrentTokenIf(kindIs(Token.Kind.comparison_operators))) {
-            const operator = self.previousToken();
+        while (self.consumeTokenIf(is(Token.Kind.comparison_operators))) {
+            const consumed_token = self.previousToken();
+            const operator = Expression.Binary.Operator {
+                .token = consumed_token,
+                .kind = switch (consumed_token.kind) {
+                    .less => .less_than,
+                    .less_equal => .less_than_or_equal,
+                    .greater => .greater_than,
+                    .greater_equal => .greater_than_or_equal,
+                    else => unreachable, // unreachable because of while predicate
+                },
+            };
             const right_operand = try self.termRule(allocator);
             errdefer right_operand.deinit(allocator);
 
@@ -152,8 +162,16 @@ pub const Parser = struct {
         var left_operand = try self.factorRule(allocator);
         errdefer left_operand.deinit(allocator);
 
-        while (self.consumeCurrentTokenIf(kindIs(Token.Kind.term_operators))) {
-            const operator = self.previousToken();
+        while (self.consumeTokenIf(is(Token.Kind.term_operators))) {
+            const consumed_token = self.previousToken();
+            const operator = Expression.Binary.Operator {
+                .token = consumed_token,
+                .kind = switch (consumed_token.kind) {
+                    .plus => .add,
+                    .minus => .subtract,
+                    else => unreachable, // unreachable because of while predicate
+                },
+            };
             const right_operand = try self.factorRule(allocator);
             errdefer right_operand.deinit(allocator);
 
@@ -173,8 +191,16 @@ pub const Parser = struct {
         var left_operand = try self.unaryRule(allocator);
         errdefer left_operand.deinit(allocator);
 
-        while (self.consumeCurrentTokenIf(kindIs(Token.Kind.factor_operators))) {
-            const operator = self.previousToken();
+        while (self.consumeTokenIf(is(Token.Kind.factor_operators))) {
+            const consumed_token = self.previousToken();
+            const operator = Expression.Binary.Operator {
+                .token = consumed_token,
+                .kind = switch (consumed_token.kind) {
+                    .asterisk, => .multiply,
+                    .slash, => .divide,
+                    else => unreachable, // unreachable because of while predicate
+                },
+            };
             const right_operand = try self.unaryRule(allocator);
             errdefer right_operand.deinit(allocator);
 
@@ -191,8 +217,16 @@ pub const Parser = struct {
     }
 
     fn unaryRule(self: *Self, allocator: Allocator) Error!*Expression {
-        if (self.consumeCurrentTokenIf(kindIs(Token.Kind.unary_operators))) {
-            const operator = self.previousToken();
+        if (self.consumeTokenIf(is(Token.Kind.unary_operators))) {
+            const consumed_token = self.previousToken();
+            const operator = Expression.Unary.Operator {
+                .token = consumed_token,
+                .kind = switch (consumed_token.kind) {
+                    .bang, => .boolean_negate,
+                    .minus, => .arithmetic_negate,
+                    else => unreachable, // unreachable because of while predicate
+                },
+            };
             const right_operand = try self.unaryRule(allocator);
             errdefer right_operand.deinit(allocator);
 
@@ -208,19 +242,30 @@ pub const Parser = struct {
     }
 
     fn primaryRule(self: *Self, allocator: Allocator) Error!*Expression {
-        if (self.consumeCurrentTokenIf(kindIs(Token.Kind.literal_values))) {
-            const literal = self.previousToken();
+        if (self.consumeTokenIf(is(Token.Kind.literal_values))) {
+            const consumed_token = self.previousToken();
+            const kind: Expression.Literal.Kind = switch (consumed_token.kind) {
+                    .nil => .nil,
+                    .true => .true,
+                    .false => .false,
+                    .number => .number,
+                    .string => .string,
+                    else => unreachable, // because of if predicate
+                };
 
             const temp = try allocator.create(Expression);
-            temp.* = .{ .literal = literal };
+            temp.* = .{ .literal = .{
+                .token = consumed_token,
+                .kind = kind,
+            } };
             return temp;
         }
 
-        if (self.consumeCurrentTokenIf(kindIs(.left_parenthesis))) {
+        if (self.consumeTokenIf(is(.left_parenthesis))) {
             const grouping = try self.expressionRule(allocator);
             errdefer grouping.deinit(allocator);
 
-            const right_parenthesis_present = self.consumeCurrentTokenIf(kindIs(.right_parenthesis));
+            const right_parenthesis_present = self.consumeTokenIf(is(.right_parenthesis));
             if (!right_parenthesis_present) {
                 self.error_token = &self.tokens[self.current];
                 return Error.MissingRightParenthesis;
@@ -231,7 +276,34 @@ pub const Parser = struct {
             return temp;
         }
 
+        if (self.consumeTokenIf(is(Token.Kind.keywords))) {
+            self.error_token = &self.tokens[self.current - 1];
+            return Error.NotImplemented;
+        }
+
+        if (self.consumeTokenIf(is(.identifier))) {
+            self.error_token = &self.tokens[self.current - 1];
+            return Error.NotImplemented;
+        }
+
         self.error_token = &self.tokens[self.current];
         return Error.ExpectedExpression;
     }
 };
+
+fn is(x: anytype) fn (Token) bool {
+    const X = @TypeOf(x);
+    switch (X) {
+        Token.Kind, @EnumLiteral() => return struct {
+            pub fn f(token: Token) bool {
+                return @as(Token.Kind, x) == token.kind;
+            }
+        }.f,
+        EnumSet(Token.Kind) => return struct {
+            pub fn f(token: Token) bool {
+                return x.contains(token.kind);
+            }
+        }.f,
+        else => @compileError("parser.Parser.tokenKindIs is only compatible with Token.Kind and EnumSet(Token.Kind)"),
+    }
+}
