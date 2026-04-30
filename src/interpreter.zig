@@ -112,6 +112,32 @@ pub fn evaluate(expression: *const Expression) !Value {
     };
 }
 
+fn isTruthy(x: anytype) bool {
+    _ = std.builtin.Type;
+    return switch (@typeInfo(@TypeOf(x))) {
+        .null => false,
+        .optional => x != null,
+        .bool => x,
+        else => true,
+    };
+}
+
+const testing = std.testing;
+const expect = testing.expect;
+const expectEqual = testing.expectEqual;
+
+test isTruthy {
+    try expect(isTruthy(true));
+    try expect(!isTruthy(false));
+    try expect(!isTruthy(null));
+    try expect(!isTruthy(@as(?void, null)));
+    try expect(isTruthy(@as(?void, {})));
+    try expect(isTruthy(1));
+    try expect(isTruthy("hello there!"));
+    try expect(isTruthy(.swag));
+    try expect(isTruthy(std.array_list));
+}
+
 test "F" {
     std.debug.print("\n", .{});
     std.debug.print("\n", .{});
