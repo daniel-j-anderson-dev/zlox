@@ -70,11 +70,11 @@ pub const Lexer = struct {
             '+' => .plus,
             ';' => .semicolon,
             '*' => .asterisk,
-            '!' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .bang_equal else .bang,
-            '=' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .equal_equal else .equal,
-            '<' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .less_equal else .less,
-            '>' => if (self.extendLexemeIfCurrentByte(isEqual('='))) .greater_equal else .greater,
-            '/' => if (self.extendLexemeIfCurrentByte(isEqual('/'))) self.comment() else .slash,
+            '!' => if (self.extendLexemeIf(is('='))) .bang_equal else .bang,
+            '=' => if (self.extendLexemeIf(is('='))) .equal_equal else .equal,
+            '<' => if (self.extendLexemeIf(is('='))) .less_equal else .less,
+            '>' => if (self.extendLexemeIf(is('='))) .greater_equal else .greater,
+            '/' => if (self.extendLexemeIf(is('/'))) self.comment() else .slash,
             '"' => try self.stringLiteral(),
             '0'...'9' => self.numberLiteral(),
             'A'...'Z', 'a'...'z', '_' => self.identifier(),
@@ -123,7 +123,7 @@ pub const Lexer = struct {
         self.line_number +|= new_line_count;
     }
 
-    fn extendLexemeIfCurrentByte(self: *Self, predicate: fn (u8) bool) bool {
+    fn extendLexemeIf(self: *Self, predicate: fn (u8) bool) bool {
         if (self.sourceBytesAvailable() and predicate(self.currentByte())) {
             self.extendLexeme();
             return true;
@@ -132,8 +132,8 @@ pub const Lexer = struct {
         }
     }
 
-    fn extendLexemeWhileCurrentByte(self: *Self, predicate: fn (u8) bool) void {
-        while (self.extendLexemeIfCurrentByte(predicate)) {}
+    fn extendLexemeWhile(self: *Self, predicate: fn (u8) bool) void {
+        while (self.extendLexemeIf(predicate)) {}
     }
 
     fn endOfFile(self: *Self) ?Token {
@@ -150,8 +150,8 @@ pub const Lexer = struct {
     }
 
     fn stringLiteral(self: *Self) Error!Token.Kind {
-        self.extendLexemeWhileCurrentByte(not(isEqual('"')));
-        const is_closing_quote_present = self.extendLexemeIfCurrentByte(isEqual('"'));
+        self.extendLexemeWhile(not(is('"')));
+        const is_closing_quote_present = self.extendLexemeIf(is('"'));
         if (!is_closing_quote_present)
             return Error.UnterminatedStringLiteral;
         self.accountForNewLinesInLexeme();
@@ -159,15 +159,15 @@ pub const Lexer = struct {
     }
 
     fn numberLiteral(self: *Self) Token.Kind {
-        self.extendLexemeWhileCurrentByte(ascii.isDigit);
-        const is_decimal_present = self.extendLexemeIfCurrentByte(isEqual('.'));
+        self.extendLexemeWhile(ascii.isDigit);
+        const is_decimal_present = self.extendLexemeIf(is('.'));
         if (is_decimal_present)
-            self.extendLexemeWhileCurrentByte(ascii.isDigit);
+            self.extendLexemeWhile(ascii.isDigit);
         return .number;
     }
 
     fn extendedLexemeToKeyword(self: *Self) ?Token.Kind {
-        self.extendLexemeWhileCurrentByte(ascii.isAlphabetic);
+        self.extendLexemeWhile(ascii.isAlphabetic);
         const lexeme_kind = stringToEnum(Token.Kind, self.lexeme()) orelse return null;
         const is_keyword = Token.Kind.keywords.contains(lexeme_kind);
         return if (is_keyword) lexeme_kind else null;
@@ -177,33 +177,42 @@ pub const Lexer = struct {
         if (self.extendedLexemeToKeyword()) |keyword_kind| {
             return keyword_kind;
         }
-        self.extendLexemeWhileCurrentByte(Or(ascii.isAlphanumeric, isEqual('_')));
+        self.extendLexemeWhile(Or(ascii.isAlphanumeric, is('_')));
         return .identifier;
     }
 
     fn whitespace(self: *Self) Token.Kind {
-        self.extendLexemeWhileCurrentByte(isElementOf(&ascii.whitespace));
+        self.extendLexemeWhile(is(&ascii.whitespace));
         self.accountForNewLinesInLexeme();
         return .whitespace;
     }
 
     fn comment(self: *Self) Token.Kind {
-        self.extendLexemeWhileCurrentByte(not(isEqual('\n')));
+        self.extendLexemeWhile(not(is('\n')));
         return .comment;
     }
 
     fn unrecognized(self: *Self) Token.Kind {
-        self.extendLexemeWhileCurrentByte(not(isElementOf(recognized)));
+        self.extendLexemeWhile(not(is(recognized)));
         return .unrecognized;
     }
 };
 
-fn isEqual(a: u8) fn (u8) bool {
-    return struct {
-        pub fn f(b: u8) bool {
-            return a == b;
-        }
-    }.f;
+fn is(x: anytype) fn(u8) bool {
+    const X = @TypeOf(x);
+    return switch (X) {
+        u8 => struct {
+            pub fn f(b: u8) bool {
+                return x == b;
+            }
+        }.f,
+        []const u8 => struct {
+            pub fn f(needle: u8) bool {
+                return std.mem.findScalar(u8, x, needle) != null;
+            }
+        }.f,
+        else => @compileError("lexer.is only supports u8, and []const u8"),
+    };
 }
 
 fn not(predicate: fn (u8) bool) fn (u8) bool {
@@ -218,14 +227,6 @@ fn Or(predicate_a: fn (u8) bool, predicate_b: fn (u8) bool) fn (u8) bool {
     return struct {
         pub fn f(a: u8) bool {
             return predicate_a(a) or predicate_b(a);
-        }
-    }.f;
-}
-
-fn isElementOf(haystack: []const u8) fn (u8) bool {
-    return struct {
-        pub fn f(needle: u8) bool {
-            return std.mem.findScalar(u8, haystack, needle) != null;
         }
     }.f;
 }
