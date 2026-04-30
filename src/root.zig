@@ -24,3 +24,4 @@ pub const parser = @import("parser.zig");
 pub const Parser = parser.Parser;
 
 pub const interpreter = @import("interpreter.zig");
+pub const evaluate = interpreter.evaluate;
