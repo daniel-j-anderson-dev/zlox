@@ -42,10 +42,8 @@ fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
             log.debug("parser is {s}out of tokens", .{if (out_of_tokens) "" else "not "});
             log.debug("failed to parse source: {s}", .{@errorName(parse_error)});
             if (parser.error_token) |error_token| {
-                if (out_of_tokens) return;
-                log.err("error token: {f}", .{error_token});
+                log.debug("error token: {f}", .{error_token});
             }
-
             if (out_of_tokens) break else continue;
         };
         defer expression.deinit(allocator);
