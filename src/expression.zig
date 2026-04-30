@@ -16,17 +16,57 @@ pub const Expression = union(enum) {
 
     const Self = @This();
 
-    pub const Literal = Token;
+    pub const Literal = struct {
+        token: Token,
+        kind: Kind,
+
+        pub const Kind = enum {
+            nil,
+            true,
+            false,
+            number,
+            string,
+        };
+    };
 
     pub const Unary = struct {
-        operator: Token,
+        operator: Operator,
         right_operand: *Self,
+
+        pub const Operator = struct {
+            token: Token,
+            kind: Kind,
+
+            pub const Kind = enum {
+                boolean_negate,
+                arithmetic_negate,
+            };
+        };
     };
 
     pub const Binary = struct {
-        operator: Token,
+        operator: Operator,
         left_operand: *Self,
         right_operand: *Self,
+
+        
+        pub const Operator = struct {
+            token: Token,
+            kind: Kind,
+
+            pub const Kind = enum {
+                add,
+                subtract,
+                multiply,
+                divide,
+                equal,
+                not_equal,
+                less_than,
+                less_than_or_equal,
+                greater_than,
+                greater_than_or_equal,
+            };
+        };
     };
 
     pub const Grouping = *Self;
@@ -83,15 +123,15 @@ pub fn expressionToPolishNotationAlloc(
     defer output.deinit(allocator);
 
     const s = switch (expression.*) {
-        .literal => |token| token.lexeme,
+        .literal => |literal| literal.token.lexeme,
         .unary => |unary| try parenthesize(
             allocator,
-            unary.operator.lexeme,
+            unary.operator.token.lexeme,
             &.{unary.right_operand},
         ),
         .binary => |binary| try parenthesize(
             allocator,
-            binary.operator.lexeme,
+            binary.operator.token.lexeme,
             &.{ binary.left_operand, binary.right_operand },
         ),
         .grouping => |inner| try parenthesize(
