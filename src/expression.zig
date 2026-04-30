@@ -145,7 +145,7 @@ pub fn expressionToPolishNotationAlloc(
     return output.toOwnedSlice(allocator);
 }
 
-test "E xpression.expressionToPolishNotationAlloc" {
+test "Expression.expressionToPolishNotationAlloc" {
     _ = Expression;
     _ = Expression.toPolishNotationAlloc;
     const expr = Expression{
