@@ -112,7 +112,7 @@ pub fn evaluate(expression: *const Expression) !Value {
     };
 }
 
-fn isTruthy(x: anytype) bool {
+pub fn isTruthy(x: anytype) bool {
     _ = std.builtin.Type;
     return switch (@typeInfo(@TypeOf(x))) {
         .null => false,
