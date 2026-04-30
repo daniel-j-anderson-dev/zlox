@@ -83,10 +83,10 @@ pub const Lexer = struct {
         };
         const lexeme_ = self.lexeme();
 
-        return Token {
+        return Token{
             .kind = kind,
             .lexeme = lexeme_,
-            .line_number = line_number
+            .line_number = line_number,
         };
     }
 
@@ -198,21 +198,25 @@ pub const Lexer = struct {
     }
 };
 
-fn is(x: anytype) fn(u8) bool {
-    const X = @TypeOf(x);
-    return switch (X) {
-        u8 => struct {
-            pub fn f(b: u8) bool {
-                return x == b;
-            }
-        }.f,
-        []const u8 => struct {
-            pub fn f(needle: u8) bool {
-                return std.mem.findScalar(u8, x, needle) != null;
-            }
-        }.f,
-        else => @compileError("lexer.is only supports u8, and []const u8"),
-    };
+fn is(x: anytype) fn (u8) bool {
+    switch (@typeInfo(@TypeOf(x))) {
+        .int, .comptime_int => {
+            return struct {
+                pub fn f(b: u8) bool {
+                    return x == b;
+                }
+            }.f;
+        },
+        .pointer, .array => {
+            return struct {
+                pub fn f(b: u8) bool {
+                    const slice: []const u8 = x;
+                    return std.mem.findScalar(u8, slice, b) != null;
+                }
+            }.f;
+        },
+        else => @compileError("Invalid type for lexer.is: " ++ @typeName(@TypeOf(x))),
+    }
 }
 
 fn not(predicate: fn (u8) bool) fn (u8) bool {
