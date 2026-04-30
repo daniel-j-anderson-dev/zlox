@@ -10,6 +10,7 @@ const zlox = @import("root.zig");
 const lexEagerAlloc = zlox.lexEagerAlloc;
 const Parser = zlox.Parser;
 const Expression = zlox.Expression;
+const evaluate = zlox.evaluate;
 
 const buffer_size = 1024;
 
@@ -34,25 +35,29 @@ fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
     log.debug("initializing parser", .{});
     var parser = Parser.init(tokens);
 
-    log.debug("printing expressions from parser", .{});
+    log.debug("evaluating expressions from parser", .{});
     while (true) {
-        log.debug("attempt to parse expression", .{});
-        const expression = parser.expressionRule(allocator) catch |parse_error| {
-            if (parser.outOfTokens()) {
-                log.debug("parser is out of tokens", .{});
-            } else {
-                log.err("failed to parse source: {any}", .{parse_error});
+        const expression = parser.parse(allocator) catch |parse_error| {
+            const out_of_tokens = parser.outOfTokens(); 
+            log.debug("parser is {s}out of tokens", .{if (out_of_tokens) "" else "not "});
+            log.err("failed to parse source: {s}", .{@errorName(parse_error)});
+            if (parser.error_token) |error_token| {
+                log.err("error token: {f}", .{error_token});
             }
-            break;
+
+            if (out_of_tokens) break else continue;
         };
-        defer {
-            expression.deinit(allocator);
-        }
+        defer expression.deinit(allocator);
 
         const s = try expression.toPolishNotationAlloc(allocator);
         defer allocator.free(s);
+        log.debug("polish notation: {s}", .{s});
 
-        try stdout.print("{s}\n", .{s});
+        const v = evaluate(expression) catch |evaluation_error| {
+            log.err("failed to evaluate: {s}", .{@errorName(evaluation_error)});
+            continue;
+        };
+        try stdout.print("{f}\n", .{v});
         try stdout.flush();
     }
 }
