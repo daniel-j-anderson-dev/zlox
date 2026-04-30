@@ -104,7 +104,7 @@ pub const Parser = struct {
 
         while (self.consumeTokenIf(is(Token.Kind.equality_operators))) {
             const consumed_token = self.previousToken();
-            const operator = Expression.Binary.Operator {
+            const operator = Expression.Binary.Operator{
                 .token = consumed_token,
                 .kind = switch (consumed_token.kind) {
                     .bang_equal => .not_equal,
@@ -133,7 +133,7 @@ pub const Parser = struct {
 
         while (self.consumeTokenIf(is(Token.Kind.comparison_operators))) {
             const consumed_token = self.previousToken();
-            const operator = Expression.Binary.Operator {
+            const operator = Expression.Binary.Operator{
                 .token = consumed_token,
                 .kind = switch (consumed_token.kind) {
                     .less => .less_than,
@@ -164,7 +164,7 @@ pub const Parser = struct {
 
         while (self.consumeTokenIf(is(Token.Kind.term_operators))) {
             const consumed_token = self.previousToken();
-            const operator = Expression.Binary.Operator {
+            const operator = Expression.Binary.Operator{
                 .token = consumed_token,
                 .kind = switch (consumed_token.kind) {
                     .plus => .add,
@@ -193,11 +193,11 @@ pub const Parser = struct {
 
         while (self.consumeTokenIf(is(Token.Kind.factor_operators))) {
             const consumed_token = self.previousToken();
-            const operator = Expression.Binary.Operator {
+            const operator = Expression.Binary.Operator{
                 .token = consumed_token,
                 .kind = switch (consumed_token.kind) {
-                    .asterisk, => .multiply,
-                    .slash, => .divide,
+                    .asterisk => .multiply,
+                    .slash => .divide,
                     else => unreachable, // unreachable because of while predicate
                 },
             };
@@ -219,11 +219,11 @@ pub const Parser = struct {
     fn unaryRule(self: *Self, allocator: Allocator) Error!*Expression {
         if (self.consumeTokenIf(is(Token.Kind.unary_operators))) {
             const consumed_token = self.previousToken();
-            const operator = Expression.Unary.Operator {
+            const operator = Expression.Unary.Operator{
                 .token = consumed_token,
                 .kind = switch (consumed_token.kind) {
-                    .bang, => .boolean_negate,
-                    .minus, => .arithmetic_negate,
+                    .bang => .boolean_negate,
+                    .minus => .arithmetic_negate,
                     else => unreachable, // unreachable because of while predicate
                 },
             };
@@ -245,13 +245,13 @@ pub const Parser = struct {
         if (self.consumeTokenIf(is(Token.Kind.literal_values))) {
             const consumed_token = self.previousToken();
             const kind: Expression.Literal.Kind = switch (consumed_token.kind) {
-                    .nil => .nil,
-                    .true => .true,
-                    .false => .false,
-                    .number => .number,
-                    .string => .string,
-                    else => unreachable, // because of if predicate
-                };
+                .nil => .nil,
+                .true => .true,
+                .false => .false,
+                .number => .number,
+                .string => .string,
+                else => unreachable, // because of if predicate
+            };
 
             const temp = try allocator.create(Expression);
             temp.* = .{ .literal = .{
