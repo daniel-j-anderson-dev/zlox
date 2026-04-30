@@ -49,7 +49,6 @@ pub const Expression = union(enum) {
         left_operand: *Self,
         right_operand: *Self,
 
-        
         pub const Operator = struct {
             token: Token,
             kind: Kind,
@@ -146,20 +145,31 @@ pub fn expressionToPolishNotationAlloc(
     return output.toOwnedSlice(allocator);
 }
 
-test "Expression.expressionToPolishNotationAlloc" {
+test "E xpression.expressionToPolishNotationAlloc" {
     _ = Expression;
-    _ = Expression.expressionToPolishNotationAlloc;
+    _ = Expression.toPolishNotationAlloc;
     const expr = Expression{
         .binary = .{
             .left_operand = a0: {
                 var expr = Expression{
                     .unary = .{
-                        .operator = .minus,
+                        .operator = .{
+                            .kind = .arithmetic_negate,
+                            .token = .{
+                                .kind = .minus,
+                                .lexeme = "-",
+                                .line_number = 0,
+                            },
+                        },
                         .right_operand = a1: {
                             var expr_ = Expression{
                                 .literal = .{
                                     .kind = .number,
-                                    .lexeme = "123",
+                                    .token = .{
+                                        .kind = .number,
+                                        .lexeme = "123",
+                                        .line_number = 0,
+                                    },
                                 },
                             };
                             break :a1 &expr_;
@@ -168,14 +178,25 @@ test "Expression.expressionToPolishNotationAlloc" {
                 };
                 break :a0 &expr;
             },
-            .operator = .multiply,
+            .operator = .{
+                .kind = .multiply,
+                .token = .{
+                    .kind = .asterisk,
+                    .lexeme = "*",
+                    .line_number = 0,
+                },
+            },
             .right_operand = a2: {
                 var expr = Expression{
                     .grouping = a3: {
                         var expr = Expression{
                             .literal = .{
                                 .kind = .number,
-                                .lexeme = "45.67",
+                                .token = .{
+                                    .kind = .number,
+                                    .lexeme = "45.67",
+                                    .line_number = 0,
+                                },
                             },
                         };
                         break :a3 &expr;
@@ -186,7 +207,7 @@ test "Expression.expressionToPolishNotationAlloc" {
         },
     };
     const expected = "(* (- 123) (group 45.67))";
-    const actual = try expr.expressionToPolishNotationAlloc(std.testing.allocator);
+    const actual = try expr.toPolishNotationAlloc(std.testing.allocator);
     defer std.testing.allocator.free(actual);
     std.debug.print("\n\n", .{});
     std.debug.print("expected = {s}\n", .{expected});
