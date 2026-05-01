@@ -32,10 +32,9 @@ fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
     };
     defer allocator.free(tokens);
 
-    log.debug("initializing parser", .{});
     var parser = Parser.init(tokens);
 
-    log.debug("evaluating expressions from parser", .{});
+    log.debug("parsing expressions", .{});
     while (true) {
         const expression = parser.parse(allocator) catch |parse_error| {
             const out_of_tokens = parser.outOfTokens();
@@ -51,12 +50,13 @@ fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
 
         const polish_notation = try expression.toPolishNotationAlloc(allocator);
         defer allocator.free(polish_notation);
-        log.debug("polish notation: {s}", .{polish_notation});
+        log.debug("{s}", .{polish_notation});
 
         var reduced_value = tree_walk.evaluate(allocator, expression) catch |evaluation_error| {
             log.err("failed to evaluate: {s}", .{@errorName(evaluation_error)});
             continue;
         };
+
         defer reduced_value.deinit(allocator);
         try stdout.print("{f}\n", .{reduced_value});
         try stdout.flush();
