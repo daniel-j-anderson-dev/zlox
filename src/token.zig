@@ -1,112 +1,155 @@
 const std = @import("std");
 const Io = std.Io;
-const File = std.Io.File;
-const Dir = std.Io.Dir;
-const log = std.log;
-const Allocator = std.mem.Allocator;
+const EnumSet = std.EnumSet;
+const trim = std.mem.trim;
 const ascii = std.ascii;
 
-const zlox = @import("root.zig");
-const lexEagerAlloc = zlox.lexEagerAlloc;
-const Parser = zlox.Parser;
-const Expression = zlox.Expression;
-const tree_walk = zlox.tree_walk;
+pub const Token = struct {
+    kind: Kind,
+    lexeme: []const u8,
+    line_number: usize,
 
-const buffer_size = 1024;
+    const Self = @This();
 
-fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
-    // initialize stdout writer
-    log.debug("initializing stdout", .{});
-    const stdout_file = File.stdout();
-    var stdout_buffer: [buffer_size]u8 = undefined;
-    var stdout_writer = stdout_file.writer(io, &stdout_buffer);
-    var stdout = &stdout_writer.interface;
+    pub fn format(self: *const Self, writer: *Io.Writer) !void {
+        try writer.print("ln: {d:>3}; {s:>" ++ Token.Kind.longest_field_name_length_string ++ "}; ", .{ self.line_number, @tagName(self.kind) });
 
-    log.debug("lexing source code into tokens", .{});
-    const tokens = lexEagerAlloc(allocator, source_code) catch |lex_eager_error| {
-        if (lex_eager_error == error.UnterminatedStringLiteral) {
-            log.err("failed to lex source: {any}", .{lex_eager_error});
-            return;
+        switch (self.kind) {
+            .whitespace => try writer.print("{any}", .{self.lexeme}),
+            .comment => try writer.print("{s}", .{trim(u8, self.lexeme, &ascii.whitespace)}),
+            else => try writer.print("{s}", .{self.lexeme}),
         }
-        return lex_eager_error;
+    }
+
+    pub const Kind = enum {
+        // Single-character tokens.
+        left_parenthesis,
+        right_parenthesis,
+        left_curly_brace,
+        right_curly_brace,
+        comma,
+        dot,
+        minus,
+        plus,
+        semicolon,
+        slash,
+        asterisk,
+
+        // One or two character tokens.
+        bang,
+        bang_equal,
+        equal,
+        equal_equal,
+        greater,
+        greater_equal,
+        less,
+        less_equal,
+
+        // Literals.
+        identifier,
+        string,
+        number,
+
+        // Keywords.
+        @"and",
+        class,
+        @"else",
+        false,
+        fun,
+        @"for",
+        @"if",
+        nil,
+        @"or",
+        print,
+        @"return",
+        super,
+        this,
+        true,
+        @"var",
+        @"while",
+
+        // Other
+        whitespace,
+        comment,
+        end_of_file,
+        unrecognized,
+
+        pub const keywords = EnumSet(Token.Kind).initMany(&.{
+            .@"and",
+            .class,
+            .@"else",
+            .false,
+            .fun,
+            .@"for",
+            .@"if",
+            .nil,
+            .@"or",
+            .print,
+            .@"return",
+            .super,
+            .this,
+            .true,
+            .@"var",
+            .@"while",
+        });
+
+        pub const non_semantic = EnumSet(Token.Kind).initMany(&.{
+            .comment,
+            .whitespace,
+            .unrecognized,
+        });
+        pub const semantic = Token.Kind.non_semantic.complement();
+
+        pub const equality_operators = EnumSet(Token.Kind).initMany(&.{
+            .bang_equal,
+            .equal_equal,
+        });
+        pub const comparison_operators = EnumSet(Token.Kind).initMany(&.{
+            .less,
+            .less_equal,
+            .greater,
+            .greater_equal,
+        });
+        pub const term_operators = EnumSet(Token.Kind).initMany(&.{
+            .plus,
+            .minus,
+        });
+        pub const factor_operators = EnumSet(Token.Kind).initMany(&.{
+            .asterisk,
+            .slash,
+        });
+        pub const unary_operators = EnumSet(Token.Kind).initMany(&.{
+            .bang,
+            .minus,
+        });
+        pub const literal_values = EnumSet(Token.Kind).initMany(&.{
+            .false,
+            .true,
+            .nil,
+            .number,
+            .string,
+        });
+
+        const longest_field_name_length = a: {
+            var max = 0;
+            for (@typeInfo(Token.Kind).@"enum".fields) |tk|
+                max = @max(max, tk.name.len);
+            break :a max;
+        };
+
+        const longest_field_name_length_string = std.fmt.comptimePrint("{d}", .{longest_field_name_length});
     };
-    defer allocator.free(tokens);
+};
 
-    log.debug("initializing parser", .{});
-    var parser = Parser.init(tokens);
-
-    log.debug("evaluating expressions from parser", .{});
-    while (true) {
-        const expression = parser.parse(allocator) catch |parse_error| {
-            const out_of_tokens = parser.outOfTokens();
-            log.debug("parser is {s}out of tokens", .{if (out_of_tokens) "" else "not "});
-            if (out_of_tokens) break;
-            if (parser.error_token) |error_token| {
-                log.err("error token: {f}", .{error_token});
-            }
-            log.err("failed to parse source: {s}", .{@errorName(parse_error)});
-            continue;
-        };
-        defer expression.deinit(allocator);
-
-        const polish_notation = try expression.toPolishNotationAlloc(allocator);
-        defer allocator.free(polish_notation);
-        log.debug("polish notation: {s}", .{polish_notation});
-
-        var reduced_value = tree_walk.evaluate(allocator, expression) catch |evaluation_error| {
-            log.err("failed to evaluate: {s}", .{@errorName(evaluation_error)});
-            continue;
-        };
-        defer reduced_value.deinit(allocator);
-        try stdout.print("{f}\n", .{reduced_value});
-        try stdout.flush();
+test "F" {
+    std.debug.print("\n", .{});
+    var keywords = Token.Kind.keywords.iterator();
+    while (keywords.next()) |keyword| {
+        const s = @tagName(keyword);
+        std.debug.print("{s}\n", .{s});
     }
 }
 
-pub fn runFile(allocator: Allocator, io: Io, path: [:0]const u8) !void {
-    log.debug("Reading contents of {s}", .{path});
-    const file_contents = try Dir.cwd().readFileAlloc(
-        io,
-        path,
-        allocator,
-        .unlimited,
-    );
-    defer allocator.free(file_contents);
-    log.info("Running file contents", .{});
-    try run(allocator, io, file_contents);
-}
-
-pub fn runPrompt(allocator: Allocator, io: Io) !void {
-    // initialize stdout writer
-    log.debug("initializing stdout", .{});
-    const stdout_file = File.stdout();
-    var stdout_buffer: [buffer_size]u8 = undefined;
-    var stdout_writer = stdout_file.writer(io, &stdout_buffer);
-    var stdout = &stdout_writer.interface;
-
-    // initialize stdin reader
-    log.debug("initializing stdin", .{});
-    const stdin_file = File.stdin();
-    var stdin_buffer: [buffer_size]u8 = undefined;
-    var stdin_reader = stdin_file.reader(io, &stdin_buffer);
-    var stdin = &stdin_reader.interface;
-
-    while (true) {
-        try stdout.print("> ", .{});
-        try stdout.flush();
-
-        const raw_line = try stdin.takeDelimiter('\n') orelse break;
-        const line = std.mem.trim(u8, raw_line, &ascii.whitespace);
-        if (line.len == 0) continue;
-        if (equalIgnoreAsciiCase(line, "exit")) break;
-
-        try run(allocator, io, line);
-    }
-}
-
-pub fn equalIgnoreAsciiCase(a: []const u8, b: []const u8) bool {
-    if (a.len != b.len) return false;
-    for (a, b) |ai, bi|
-        if (ascii.toLower(ai) != ascii.toLower(bi)) return false;
-    return true;
+test "Token.Kind.longest_field_name_length" {
+    std.debug.print("\n\n{d}\n\n", .{Token.Kind.longest_field_name_length});
 }
