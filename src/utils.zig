@@ -53,10 +53,11 @@ fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
         defer allocator.free(polish_notation);
         log.debug("polish notation: {s}", .{polish_notation});
 
-        const reduced_value = tree_walk.evaluate(expression) catch |evaluation_error| {
+        var reduced_value = tree_walk.evaluate(allocator, expression) catch |evaluation_error| {
             log.err("failed to evaluate: {s}", .{@errorName(evaluation_error)});
             continue;
         };
+        defer reduced_value.deinit(allocator);
         try stdout.print("{f}\n", .{reduced_value});
         try stdout.flush();
     }
