@@ -17,8 +17,9 @@ pub const Lexer = lexer.Lexer;
 pub const token = @import("token.zig");
 pub const Token = token.Token;
 
-pub const expression = @import("expression.zig");
-pub const Expression = expression.Expression;
+pub const abstract_syntax_tree = @import("abstract_syntax_tree.zig");
+pub const expression = abstract_syntax_tree.expression;
+pub const Expression = abstract_syntax_tree.expression.Expression;
 
 pub const parser = @import("parser.zig");
 pub const Parser = parser.Parser;
