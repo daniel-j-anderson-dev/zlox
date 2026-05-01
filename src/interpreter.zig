@@ -6,10 +6,10 @@ const activeTag = std.meta.activeTag;
 const Tag = std.meta.Tag;
 const parseFloat = std.fmt.parseFloat;
 const comptimePrint = std.fmt.comptimePrint;
-const sliceConcatenate = std.mem.concat;
-const sliceEqual = std.mem.eql;
+const allocPrint = std.fmt.allocPrint;
 
 const zlox = @import("root.zig");
+const interpreter = @This();
 const Expression = zlox.Expression;
 
 pub const Value = union(enum) {
@@ -62,7 +62,7 @@ pub const Value = union(enum) {
             .nil => true,
             .boolean => lhs.boolean == rhs.boolean,
             .number => lhs.number == rhs.number,
-            .string => sliceEqual(u8, lhs.string.items, rhs.string.items),
+            .string => std.mem.eql(u8, lhs.string.items, rhs.string.items),
         }
         else false;
     }
@@ -143,8 +143,23 @@ pub const tree_walk = struct {
                         if (lhs == .number and rhs == .number)
                             break :a .{ .number = lhs.number + rhs.number };
                         if (lhs == .string and rhs == .string) {
+                            const sum = try std.mem.concat(allocator, u8, &.{ lhs.string.items, rhs.string.items });
                             break :a .{ .string = .{
-                                .items = try sliceConcatenate(allocator, u8, &.{ lhs.string.items, rhs.string.items }),
+                                .items = sum,
+                                .items_need_to_be_freed = true,
+                            } };
+                        }
+                        if (lhs == .string and rhs == .number) {
+                            const sum = try allocPrint(allocator, "{s}{d}", .{lhs.string.items, rhs.number});
+                            break :a .{ .string = .{
+                                .items = sum,
+                                .items_need_to_be_freed = true,
+                            } };
+                        }
+                        if (lhs == .number and rhs == .string) {
+                            const sum = try allocPrint(allocator, "{d}{s}", .{lhs.number, rhs.string.items});
+                            break :a .{ .string = .{
+                                .items = sum,
                                 .items_need_to_be_freed = true,
                             } };
                         }
@@ -172,10 +187,10 @@ pub const tree_walk = struct {
     }
 };
 
-fn trimFirstAndLast(T: type, slice: []const T) []const T {
-    const less_than_two_elements = slice.len < 2;
-    const trimmed_slice = if (less_than_two_elements) slice[0..0] else slice[1..slice.len - 1];
-    return trimmed_slice;
+fn trimFirstAndLast(T: type, items: []const T) []const T {
+    const less_than_two_elements = items.len < 2;
+    const trimmed = if (less_than_two_elements) items[0..0] else items[1..items.len - 1];
+    return trimmed;
 }
 
 test "union(enum) tags" {
