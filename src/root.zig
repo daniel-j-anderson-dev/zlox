@@ -20,6 +20,8 @@ pub const Token = token.Token;
 pub const abstract_syntax_tree = @import("abstract_syntax_tree.zig");
 pub const expression = abstract_syntax_tree.expression;
 pub const Expression = abstract_syntax_tree.expression.Expression;
+pub const statement = abstract_syntax_tree.statement;
+pub const Statement = abstract_syntax_tree.statement.Statement;
 
 pub const parser = @import("parser.zig");
 pub const Parser = parser.Parser;

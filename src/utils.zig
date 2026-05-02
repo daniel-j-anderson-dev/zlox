@@ -36,7 +36,13 @@ fn run(allocator: Allocator, io: Io, source_code: []const u8) !void {
 
     log.debug("parsing expressions", .{});
     while (true) {
-        const expression = parser.parse(allocator) catch |parse_error| {
+        // const statements = try parser.parse(allocator);
+        // defer {
+        //     for (statements) |statement| statement.deinit(allocator);
+        //     allocator.free(statements);
+        // }
+        
+        const expression = parser.expressionRule(allocator) catch |parse_error| {
             const out_of_tokens = parser.outOfTokens();
             log.debug("parser is {s}out of tokens", .{if (out_of_tokens) "" else "not "});
             if (out_of_tokens) break;

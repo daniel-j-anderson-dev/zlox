@@ -1,11 +1,13 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const ArrayList = std.ArrayList;
 const EnumSet = std.EnumSet;
 
 const zlox = @import("root.zig");
 const Token = zlox.Token;
 const Lexer = zlox.Lexer;
 const Expression = zlox.Expression;
+const Statement = zlox.Statement;
 
 pub const Parser = struct {
     // +---------+
@@ -20,7 +22,7 @@ pub const Parser = struct {
     // | types   |
     // +---------+
 
-    pub const Self = @This();
+    const Self = @This();
     pub const Error = error{
         MissingRightParenthesis,
         ExpectedExpression,
@@ -99,15 +101,67 @@ pub const Parser = struct {
     // | the whole point! |
     // +------------------+
 
-    pub fn parse(self: *Self, allocator: Allocator) Error!*Expression {
-        return self.expressionRule(allocator);
+    pub fn parse(self: *Self, allocator: Allocator) Error![]*Statement {
+        var statements: ArrayList(*Statement) = .empty;
+        defer statements.deinit(allocator);
+
+        while (self.currentTokenAvailable()) {
+            const statement = self.statement();
+            errdefer statement.deinit(allocator);
+            try statements.add(statement);
+        }
+
+        return statements.toOwnedSlice(allocator);
     }
 
     // +---------------+
     // | grammar rules |
     // +---------------+
 
-    fn expressionRule(self: *Self, allocator: Allocator) Error!*Expression {
+    // +-------------------------+
+    // | statement grammar rules |
+    // +-------------------------+
+
+    fn statementRule(self: *Self, allocator: Allocator) Error!*Statement {
+        return try if (self.consumeTokenIf(is(.print)))
+            self.printStatementRule(allocator)
+        else
+            self.expressionStatementRule(allocator);
+    }
+
+    fn expressionStatementRule(self: *Self, allocator: Allocator) Error!*Statement {
+        var value = try self.expressionRule(allocator);
+        errdefer value.deinit(allocator);
+
+        if (self.consumeTokenIf(is(.semicolon))) {} else {
+            return error.MissingSemicolonAfterPrintValue;
+        }
+
+        const print_statement = try allocator.create(Statement);
+        print_statement.* = .{ .expression = .{ .expression = value } };
+
+        return print_statement;
+    }
+
+    fn printStatementRule(self: *Self, allocator: Allocator) Error!*Statement {
+        var value = try self.expressionRule(allocator);
+        errdefer value.deinit(allocator);
+
+        if (self.consumeTokenIf(is(.semicolon))) {} else {
+            return error.MissingSemicolonAfterPrintValue;
+        }
+
+        const print_statement = try allocator.create(Statement);
+        print_statement.* = .{ .print = .{ .expression = value } };
+
+        return print_statement;
+    }
+
+    // +--------------------------+
+    // | expression grammar rules |
+    // +--------------------------+
+
+    pub fn expressionRule(self: *Self, allocator: Allocator) Error!*Expression {
         return try self.equalityRule(allocator);
     }
 

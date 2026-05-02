@@ -1,12 +1,19 @@
+program   = statement* EOF
+
+statement = expressionStatement
+          | printStatement
+
+expressionStatement = expression ";"
+printStatement      = "print" expression ";"
+
 expression = literal
            | unary
            | binary
            | grouping ;
-
-literal  = NUMBER | STRING | "true" | "false" | "nil" ;
-grouping = "(" expression ")" ;
-unary    = unary_operator expression ;
-binary   = expression binary_operator expression ;
+literal    = NUMBER | STRING | "true" | "false" | "nil" ;
+grouping   = "(" expression ")" ;
+unary      = unary_operator expression ;
+binary     = expression binary_operator expression ;
 
 unary_operator  = "-" | "!"
 binary_operator = "==" | "!=" | "<" | "<=" | ">" | ">="
